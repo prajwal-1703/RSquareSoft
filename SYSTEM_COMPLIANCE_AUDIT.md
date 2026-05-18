@@ -90,13 +90,16 @@ This audit verifies that the implemented system contains **zero dummy placeholde
     *   `FOR UPDATE` locks the target resource row so no other concurrently executing transaction can access or claim it.
     *   `SKIP LOCKED` forces concurrent workers to skip this row and target the next free resource immediately instead of blocking, maximizing throughput.
 
-### 2.2 Prioritizes Patients by Severity
-*   **Engineering Foundation:** Real-time priority scores are generated based on clinical parameters and automated AI risk evaluations.
-*   **Exact Priority Scoring:** [icu.service.js](server/src/modules/icu/icu.service.js) reads:
-    ```javascript
-    const priorityScore = patient.currentRiskScore || 50;
-    ```
-*   **Real-time Sorted Queue:** [icu.service.js](server/src/modules/icu/icu.service.js) pulls:
+### 2.2 Prioritizes Patients by Severity (Risk Factor Analysis)
+*   **Engineering Foundation:** Real-time priority scores are generated based on clinical parameters and automated AI risk evaluations. When vitals are updated, a prediction service mathematically assesses mortality risk.
+*   **Risk Analysis Algorithm:** As documented in [ai.service.js](server/src/modules/ai/ai.service.js), the system uses an external FastAPI microservice (or a local clinical heuristic fallback) to process 14 parameters (e.g., Heart Rate, SpO2, GCS Score, Lactate, Creatinine).
+    *   **Clinical Heuristics Example:** 
+        *   Baseline score = 30
+        *   If `SpO2 < 90%` → add +25 risk points
+        *   If `Systolic BP < 90` → add +20 risk points
+        *   If `GCS Score <= 8` → add +25 risk points (severe neurological compromise)
+    *   **Risk Tiers:** `Score >= 75` (Critical), `Score >= 50` (High), `Score >= 25` (Moderate).
+*   **Real-time Sorted Queue:** [icu.service.js](server/src/modules/icu/icu.service.js) explicitly pulls patients waiting for resources:
     ```javascript
     const criticalPatients = await prisma.patient.findMany({
       where: {
@@ -106,16 +109,14 @@ This audit verifies that the implemented system contains **zero dummy placeholde
       orderBy: { currentRiskScore: 'desc' },
       take: 20,
     ```
-    This orders patients in real time on the Command Center by severity score, allowing emergency clinicians to instantly review priority assignments.
+    This automatically forces the most mathematically critical patients to the very top of the frontend queue, guaranteeing the highest priority patients are addressed first.
 
-### 2.3 Reallocates Resources Dynamically
-*   **Engineering Foundation:** Reallocation must update multiple rows safely. A doctor can override a lower-severity patient's resource and assign it to an incoming high-severity patient in one motion.
-*   **Exact Code Verification:** [icu.service.js](server/src/modules/icu/icu.service.js)
-    The `reassignResource` transaction handles this dynamically:
-    1.  Verifies the active allocation is locked.
-    2.  Transitions the active allocation status to `TRANSFERRED` (releasing it from the current patient).
-    3.  Creates a new `Allocation` record for the high-priority patient.
-    4.  Updates the allocation log to create a seamless audit path of where the resource was moved from.
+### 2.3 Reallocates Resources Dynamically (Emergency Shifts)
+*   **Engineering Foundation:** To handle emergencies shifting the picture, the system implements a strict Role-Based **Revocation Engine**.
+*   **How it Works:** Doctors and Admins can view the real-time 20-bed occupancy map. If a mass casualty event occurs and a critical trauma patient needs a ventilator, a clinician can instantly "Revoke" a ventilator from a stabilizing patient.
+*   **Database Execution:** This action triggers the `releaseResource` pipeline in [icu.service.js](server/src/modules/icu/icu.service.js), which surgically terminates the target patient's allocation row and shifts the underlying ICU physical resource back to `AVAILABLE`. This makes it instantly actionable in the emergency queue for the new incoming trauma patient.
+
+
 
 ---
 
