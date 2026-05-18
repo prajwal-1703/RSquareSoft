@@ -278,20 +278,22 @@ function Admin() {
           </button>
         }>
           <div className="divide-y divide-border">
-            {(apiAudit.length > 0 ? apiAudit : auditEvents).map((e: { id?: string; createdAt?: string; t?: string; action?: string; actor?: string; entity?: string; text?: string; userId?: string; kind?: string }, idx: number) => {
-              const isReal = !!e.action;
-              const tone = isReal ? "text-cyan" : e.kind === "critical" ? "text-critical" : e.kind === "warn" ? "text-warning" : e.kind === "ai" ? "text-emerald" : e.kind === "ehr" ? "text-cyan" : "text-muted-foreground";
+            {apiAudit.length === 0 && (
+              <p className="text-sm font-mono text-muted-foreground p-4 text-center">No system events recorded yet.</p>
+            )}
+            {apiAudit.map((e: { id?: string; createdAt?: string; action?: string; userId?: string; entity?: string }, idx: number) => {
+              const tone = e.entity === "PATIENT" ? "text-critical" : e.entity === "USER" ? "text-cyan" : "text-emerald";
               return (
                 <div key={e.id || idx} className="py-3 flex items-center gap-4 hover:bg-white/3 transition-colors">
                   <span className="font-mono text-[10px] text-muted-foreground w-20 shrink-0">
-                    {isReal ? new Date(e.createdAt!).toLocaleTimeString() : e.t}
+                    {new Date(e.createdAt!).toLocaleTimeString()}
                   </span>
                   <span className={`size-2 rounded-full bg-current shrink-0 ${tone}`} />
                   <span className={`font-mono text-[10px] uppercase tracking-widest w-32 shrink-0 ${tone}`}>
-                    {isReal ? e.entity : e.actor}
+                    {e.entity}
                   </span>
                   <span className="text-sm flex-1 truncate">
-                    {isReal ? e.action : e.text}
+                    {e.action}
                   </span>
                   <span className="font-mono text-[10px] text-muted-foreground shrink-0">{(e.id || "").slice(-6)}</span>
                 </div>
