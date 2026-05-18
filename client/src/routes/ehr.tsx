@@ -3,7 +3,7 @@ import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { motion, AnimatePresence } from "framer-motion";
 import { Check, GitBranch, GitCommit, GitMerge, Loader2, Lock, RefreshCw, RotateCcw, Save } from "lucide-react";
 import { AppShell, Card } from "@/components/AppShell";
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { ehrApi } from "@/lib/api";
 import { patients as mockPatients } from "@/lib/mock";
 import { useAuth } from "@/lib/hooks";
@@ -95,6 +95,21 @@ function EHR() {
     labReport: ""
   });
 
+  // Pre-fill fields to preserve existing data on partial updates
+  useEffect(() => {
+    if (patient) {
+      const v = patient.vitals?.[0] || {};
+      setFields(prev => ({
+        ...prev,
+        heartRate: v.heartRate?.toString() || "",
+        spo2: v.spo2?.toString() || "",
+        gcsScore: v.gcsScore?.toString() || "",
+        isVentilated: v.isVentilated || false,
+        isOnVasopressors: v.isOnVasopressors || false,
+      }));
+    }
+  }, [patient?.id, activeTab]);
+
   const handleSave = () => {
     if (!selectedPatientId || !patient) return;
     setSaveStatus("saving");
@@ -123,7 +138,7 @@ function EHR() {
       ...(vitals ? { vitals } : {}),
       ...(diagnosis ? { diagnosis } : {}),
       ...(medication ? { medication } : {}),
-      ...(fields.labReport ? { labReport: { summary: fields.labReport } } : {}),
+      ...(fields.labReport ? { labReport: { testName: "General Lab Panel", result: fields.labReport } } : {}),
       ...(fields.notes ? { notes: fields.notes } : {})
     });
   };
@@ -325,7 +340,7 @@ function EHR() {
                       {patient.labReports?.length > 0 ? (
                         <div className="space-y-1 border-t border-border pt-2">
                           {patient.labReports.slice(0, 3).map((l: any) => (
-                            <div key={l.id} className="text-xs text-muted-foreground"><span className="text-cyan font-mono">Lab</span> {l.summary}</div>
+                            <div key={l.id} className="text-xs text-muted-foreground"><span className="text-cyan font-mono">Lab</span> {l.result}</div>
                           ))}
                         </div>
                       ) : <p className="text-xs text-muted-foreground">No lab reports.</p>}
@@ -371,7 +386,7 @@ function EHR() {
                     <div className="rounded-xl border border-border bg-background/40 p-4 space-y-3">
                       <p className="text-[10px] font-mono uppercase tracking-widest text-muted-foreground border-b border-border pb-2">Diagnoses & Meds</p>
                       <label className="block">
-                        <span className="text-[9px] font-mono text-muted-foreground uppercase flex items-center justify-between">New Diagnosis <select value={fields.diagnosisSeverity} onChange={e => setFields(f => ({...f, diagnosisSeverity: e.target.value}))} className="bg-transparent text-[9px] outline-none text-primary cursor-pointer"><option value="stable" className="bg-background">Stable</option><option value="high" className="bg-background">High</option><option value="critical" className="bg-background">Critical</option></select></span>
+                        <span className="text-[9px] font-mono text-muted-foreground uppercase flex items-center justify-between">New Diagnosis <select value={fields.diagnosisSeverity} onChange={e => setFields(f => ({...f, diagnosisSeverity: e.target.value}))} className="bg-transparent text-[9px] outline-none text-primary cursor-pointer"><option value="mild" className="bg-background">Mild</option><option value="moderate" className="bg-background">Moderate</option><option value="severe" className="bg-background">Severe</option><option value="critical" className="bg-background">Critical</option></select></span>
                         <input value={fields.diagnosisName} onChange={e => setFields(f => ({...f, diagnosisName: e.target.value}))} placeholder="e.g., Acute Myocardial Infarction" className="mt-1 w-full rounded-md border border-border bg-background/60 px-2 py-1.5 text-xs outline-none focus:border-primary/50" />
                       </label>
                       <div className="grid grid-cols-2 gap-3 mt-3">
