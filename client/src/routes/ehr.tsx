@@ -84,16 +84,11 @@ function EHR() {
   // EHR fields (editable state)
   const [fields, setFields] = useState({
     notes: "",
-    heartRate: "",
-    spo2: "",
-    gcsScore: "",
-    isVentilated: false,
-    isOnVasopressors: false,
-    diagnosisName: "",
-    diagnosisSeverity: "moderate",
-    medicationName: "",
-    medicationDosage: "",
-    labReport: ""
+    heartRate: "", systolicBp: "", diastolicBp: "", respiratoryRate: "", temperature: "", spo2: "", gcsScore: "", bloodGlucose: "", creatinine: "", lactate: "", wbcCount: "", plateletCount: "", isVentilated: false, isOnVasopressors: false,
+    diagnosisName: "", diagnosisSeverity: "moderate", diagnosisIcdCode: "",
+    medicationName: "", medicationDosage: "", medicationRoute: "", medicationFrequency: "",
+    labTestName: "", labTestCategory: "", labResult: "", labUnit: "", labReferenceRange: "", labIsAbnormal: false,
+    allergyName: "", allergySeverity: "moderate", allergyReaction: ""
   });
 
   // Pre-fill fields to preserve existing data on partial updates
@@ -103,8 +98,17 @@ function EHR() {
       setFields(prev => ({
         ...prev,
         heartRate: v.heartRate?.toString() || "",
+        systolicBp: v.systolicBp?.toString() || "",
+        diastolicBp: v.diastolicBp?.toString() || "",
+        respiratoryRate: v.respiratoryRate?.toString() || "",
+        temperature: v.temperature?.toString() || "",
         spo2: v.spo2?.toString() || "",
         gcsScore: v.gcsScore?.toString() || "",
+        bloodGlucose: v.bloodGlucose?.toString() || "",
+        creatinine: v.creatinine?.toString() || "",
+        lactate: v.lactate?.toString() || "",
+        wbcCount: v.wbcCount?.toString() || "",
+        plateletCount: v.plateletCount?.toString() || "",
         isVentilated: v.isVentilated || false,
         isOnVasopressors: v.isOnVasopressors || false,
       }));
@@ -115,23 +119,49 @@ function EHR() {
     if (!selectedPatientId || !patient) return;
     setSaveStatus("saving");
 
-    const vitals = (fields.heartRate || fields.spo2 || fields.gcsScore || fields.isVentilated || fields.isOnVasopressors) ? {
+    const vitals = (fields.heartRate || fields.spo2 || fields.gcsScore || fields.systolicBp || fields.isVentilated || fields.isOnVasopressors) ? {
       heartRate: fields.heartRate ? parseFloat(fields.heartRate) : undefined,
+      systolicBp: fields.systolicBp ? parseFloat(fields.systolicBp) : undefined,
+      diastolicBp: fields.diastolicBp ? parseFloat(fields.diastolicBp) : undefined,
+      respiratoryRate: fields.respiratoryRate ? parseFloat(fields.respiratoryRate) : undefined,
+      temperature: fields.temperature ? parseFloat(fields.temperature) : undefined,
       spo2: fields.spo2 ? parseFloat(fields.spo2) : undefined,
       gcsScore: fields.gcsScore ? parseFloat(fields.gcsScore) : undefined,
+      bloodGlucose: fields.bloodGlucose ? parseFloat(fields.bloodGlucose) : undefined,
+      creatinine: fields.creatinine ? parseFloat(fields.creatinine) : undefined,
+      lactate: fields.lactate ? parseFloat(fields.lactate) : undefined,
+      wbcCount: fields.wbcCount ? parseFloat(fields.wbcCount) : undefined,
+      plateletCount: fields.plateletCount ? parseFloat(fields.plateletCount) : undefined,
       isVentilated: fields.isVentilated,
       isOnVasopressors: fields.isOnVasopressors
     } : undefined;
 
     const diagnosis = fields.diagnosisName ? {
       description: fields.diagnosisName,
+      icdCode: fields.diagnosisIcdCode,
       severity: fields.diagnosisSeverity
     } : undefined;
 
     const medication = fields.medicationName ? {
       name: fields.medicationName,
       dosage: fields.medicationDosage || "Standard dose",
-      frequency: "PRN"
+      route: fields.medicationRoute,
+      frequency: fields.medicationFrequency || "PRN"
+    } : undefined;
+
+    const labReport = fields.labTestName ? {
+      testName: fields.labTestName,
+      testCategory: fields.labTestCategory,
+      result: fields.labResult,
+      unit: fields.labUnit,
+      referenceRange: fields.labReferenceRange,
+      isAbnormal: fields.labIsAbnormal
+    } : undefined;
+
+    const allergy = fields.allergyName ? {
+      allergen: fields.allergyName,
+      severity: fields.allergySeverity,
+      reaction: fields.allergyReaction
     } : undefined;
 
     updateMutation.mutate({
@@ -139,15 +169,16 @@ function EHR() {
       ...(vitals ? { vitals } : {}),
       ...(diagnosis ? { diagnosis } : {}),
       ...(medication ? { medication } : {}),
-      ...(fields.labReport ? { labReport: { testName: "General Lab Panel", result: fields.labReport } } : {}),
+      ...(labReport ? { labReport } : {}),
+      ...(allergy ? { allergy } : {}),
       ...(fields.notes ? { notes: fields.notes } : {})
     });
   };
 
   const v = patient?.vitals?.[0] || {};
-  const hasChanges = !!fields.notes || !!fields.diagnosisName || !!fields.medicationName || !!fields.labReport || 
+  const hasChanges = !!fields.notes || !!fields.diagnosisName || !!fields.medicationName || !!fields.labTestName || !!fields.allergyName ||
     fields.heartRate !== (v.heartRate?.toString() || "") ||
-    fields.spo2 !== (v.spo2?.toString() || "") ||
+    fields.systolicBp !== (v.systolicBp?.toString() || "") ||
     fields.gcsScore !== (v.gcsScore?.toString() || "") ||
     fields.isVentilated !== (v.isVentilated || false) ||
     fields.isOnVasopressors !== (v.isOnVasopressors || false);
@@ -363,7 +394,7 @@ function EHR() {
                   {['doctor', 'nurse'].includes(user?.role) && (
                     <div className="rounded-xl border border-border bg-background/40 p-4 space-y-3">
                       <p className="text-[10px] font-mono uppercase tracking-widest text-muted-foreground border-b border-border pb-2">Vitals & Support</p>
-                      <div className="grid grid-cols-2 gap-3">
+                      <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
                         <label className="block">
                           <span className="text-[9px] font-mono text-muted-foreground uppercase">Heart Rate (bpm)</span>
                           <input type="number" value={fields.heartRate} onChange={e => setFields(f => ({...f, heartRate: e.target.value}))} className="mt-1 w-full rounded-md border border-border bg-background/60 px-2 py-1.5 text-xs outline-none focus:border-primary/50" />
@@ -371,6 +402,22 @@ function EHR() {
                         <label className="block">
                           <span className="text-[9px] font-mono text-muted-foreground uppercase">SpO2 (%)</span>
                           <input type="number" value={fields.spo2} onChange={e => setFields(f => ({...f, spo2: e.target.value}))} className="mt-1 w-full rounded-md border border-border bg-background/60 px-2 py-1.5 text-xs outline-none focus:border-primary/50" />
+                        </label>
+                        <label className="block">
+                          <span className="text-[9px] font-mono text-muted-foreground uppercase">Temp (°C)</span>
+                          <input type="number" value={fields.temperature} onChange={e => setFields(f => ({...f, temperature: e.target.value}))} className="mt-1 w-full rounded-md border border-border bg-background/60 px-2 py-1.5 text-xs outline-none focus:border-primary/50" />
+                        </label>
+                        <label className="block">
+                          <span className="text-[9px] font-mono text-muted-foreground uppercase">Resp. Rate</span>
+                          <input type="number" value={fields.respiratoryRate} onChange={e => setFields(f => ({...f, respiratoryRate: e.target.value}))} className="mt-1 w-full rounded-md border border-border bg-background/60 px-2 py-1.5 text-xs outline-none focus:border-primary/50" />
+                        </label>
+                        <label className="block">
+                          <span className="text-[9px] font-mono text-muted-foreground uppercase">Systolic BP</span>
+                          <input type="number" value={fields.systolicBp} onChange={e => setFields(f => ({...f, systolicBp: e.target.value}))} className="mt-1 w-full rounded-md border border-border bg-background/60 px-2 py-1.5 text-xs outline-none focus:border-primary/50" />
+                        </label>
+                        <label className="block">
+                          <span className="text-[9px] font-mono text-muted-foreground uppercase">Diastolic BP</span>
+                          <input type="number" value={fields.diastolicBp} onChange={e => setFields(f => ({...f, diastolicBp: e.target.value}))} className="mt-1 w-full rounded-md border border-border bg-background/60 px-2 py-1.5 text-xs outline-none focus:border-primary/50" />
                         </label>
                         <label className="block col-span-2">
                           <span className="text-[9px] font-mono text-muted-foreground uppercase">GCS Score (3-15)</span>
@@ -394,34 +441,95 @@ function EHR() {
                   {['doctor'].includes(user?.role) && (
                     <div className="rounded-xl border border-border bg-background/40 p-4 space-y-3">
                       <p className="text-[10px] font-mono uppercase tracking-widest text-muted-foreground border-b border-border pb-2">Diagnoses & Meds</p>
-                      <label className="block">
-                        <span className="text-[9px] font-mono text-muted-foreground uppercase flex items-center justify-between">New Diagnosis <select value={fields.diagnosisSeverity} onChange={e => setFields(f => ({...f, diagnosisSeverity: e.target.value}))} className="bg-transparent text-[9px] outline-none text-primary cursor-pointer"><option value="mild" className="bg-background">Mild</option><option value="moderate" className="bg-background">Moderate</option><option value="severe" className="bg-background">Severe</option><option value="critical" className="bg-background">Critical</option></select></span>
-                        <input value={fields.diagnosisName} onChange={e => setFields(f => ({...f, diagnosisName: e.target.value}))} placeholder="e.g., Acute Myocardial Infarction" className="mt-1 w-full rounded-md border border-border bg-background/60 px-2 py-1.5 text-xs outline-none focus:border-primary/50" />
-                      </label>
-                      <div className="grid grid-cols-2 gap-3 mt-3">
+                      
+                      <div className="grid grid-cols-3 gap-2">
+                        <label className="block col-span-2">
+                          <span className="text-[9px] font-mono text-muted-foreground uppercase flex items-center justify-between">New Diagnosis <select value={fields.diagnosisSeverity} onChange={e => setFields(f => ({...f, diagnosisSeverity: e.target.value}))} className="bg-transparent text-[9px] outline-none text-primary cursor-pointer"><option value="mild" className="bg-background">Mild</option><option value="moderate" className="bg-background">Moderate</option><option value="severe" className="bg-background">Severe</option><option value="critical" className="bg-background">Critical</option></select></span>
+                          <input value={fields.diagnosisName} onChange={e => setFields(f => ({...f, diagnosisName: e.target.value}))} placeholder="e.g., Acute Myocardial Infarction" className="mt-1 w-full rounded-md border border-border bg-background/60 px-2 py-1.5 text-xs outline-none focus:border-primary/50" />
+                        </label>
                         <label className="block">
+                          <span className="text-[9px] font-mono text-muted-foreground uppercase">ICD-10 Code</span>
+                          <input value={fields.diagnosisIcdCode} onChange={e => setFields(f => ({...f, diagnosisIcdCode: e.target.value}))} placeholder="e.g. I21.9" className="mt-1 w-full rounded-md border border-border bg-background/60 px-2 py-1.5 text-xs outline-none focus:border-primary/50" />
+                        </label>
+                      </div>
+
+                      <div className="grid grid-cols-2 lg:grid-cols-4 gap-3 mt-3">
+                        <label className="block col-span-2 lg:col-span-1">
                           <span className="text-[9px] font-mono text-muted-foreground uppercase">Medication</span>
-                          <input value={fields.medicationName} onChange={e => setFields(f => ({...f, medicationName: e.target.value}))} placeholder="e.g., Norepinephrine" className="mt-1 w-full rounded-md border border-border bg-background/60 px-2 py-1.5 text-xs outline-none focus:border-primary/50" />
+                          <input value={fields.medicationName} onChange={e => setFields(f => ({...f, medicationName: e.target.value}))} placeholder="e.g. Norepinephrine" className="mt-1 w-full rounded-md border border-border bg-background/60 px-2 py-1.5 text-xs outline-none focus:border-primary/50" />
                         </label>
                         <label className="block">
                           <span className="text-[9px] font-mono text-muted-foreground uppercase">Dosage</span>
-                          <input value={fields.medicationDosage} onChange={e => setFields(f => ({...f, medicationDosage: e.target.value}))} placeholder="e.g., 5mcg/min" className="mt-1 w-full rounded-md border border-border bg-background/60 px-2 py-1.5 text-xs outline-none focus:border-primary/50" />
+                          <input value={fields.medicationDosage} onChange={e => setFields(f => ({...f, medicationDosage: e.target.value}))} placeholder="e.g. 5mcg/min" className="mt-1 w-full rounded-md border border-border bg-background/60 px-2 py-1.5 text-xs outline-none focus:border-primary/50" />
+                        </label>
+                        <label className="block">
+                          <span className="text-[9px] font-mono text-muted-foreground uppercase">Route</span>
+                          <input value={fields.medicationRoute} onChange={e => setFields(f => ({...f, medicationRoute: e.target.value}))} placeholder="e.g. IV" className="mt-1 w-full rounded-md border border-border bg-background/60 px-2 py-1.5 text-xs outline-none focus:border-primary/50" />
+                        </label>
+                        <label className="block">
+                          <span className="text-[9px] font-mono text-muted-foreground uppercase">Frequency</span>
+                          <input value={fields.medicationFrequency} onChange={e => setFields(f => ({...f, medicationFrequency: e.target.value}))} placeholder="e.g. Continuous" className="mt-1 w-full rounded-md border border-border bg-background/60 px-2 py-1.5 text-xs outline-none focus:border-primary/50" />
                         </label>
                       </div>
                     </div>
                   )}
 
-                  {/* Lab Reports */}
+                  {/* Clinical Workup (Labs & Biomarkers) */}
                   {['doctor', 'lab_technician'].includes(user?.role) && (
                     <div className="rounded-xl border border-border bg-background/40 p-4 space-y-3">
-                      <p className="text-[10px] font-mono uppercase tracking-widest text-muted-foreground border-b border-border pb-2">Lab Reports</p>
-                      <label className="block">
-                        <span className="text-[9px] font-mono text-muted-foreground uppercase">Lab Result Summary</span>
-                        <input value={fields.labReport || ""} onChange={e => setFields(f => ({...f, labReport: e.target.value}))} placeholder="e.g., CBC normal, Lactate elevated" className="mt-1 w-full rounded-md border border-border bg-background/60 px-2 py-1.5 text-xs outline-none focus:border-primary/50" />
-                      </label>
+                      <p className="text-[10px] font-mono uppercase tracking-widest text-muted-foreground border-b border-border pb-2">Biomarkers & Lab Results</p>
+                      <div className="grid grid-cols-4 gap-3">
+                        <label className="block">
+                          <span className="text-[9px] font-mono text-muted-foreground uppercase">Glucose (mg/dL)</span>
+                          <input type="number" value={fields.bloodGlucose} onChange={e => setFields(f => ({...f, bloodGlucose: e.target.value}))} className="mt-1 w-full rounded-md border border-border bg-background/60 px-2 py-1.5 text-xs outline-none focus:border-primary/50" />
+                        </label>
+                        <label className="block">
+                          <span className="text-[9px] font-mono text-muted-foreground uppercase">Lactate (mmol/L)</span>
+                          <input type="number" value={fields.lactate} onChange={e => setFields(f => ({...f, lactate: e.target.value}))} className="mt-1 w-full rounded-md border border-border bg-background/60 px-2 py-1.5 text-xs outline-none focus:border-primary/50" />
+                        </label>
+                        <label className="block">
+                          <span className="text-[9px] font-mono text-muted-foreground uppercase">Creatinine</span>
+                          <input type="number" value={fields.creatinine} onChange={e => setFields(f => ({...f, creatinine: e.target.value}))} className="mt-1 w-full rounded-md border border-border bg-background/60 px-2 py-1.5 text-xs outline-none focus:border-primary/50" />
+                        </label>
+                        <label className="block">
+                          <span className="text-[9px] font-mono text-muted-foreground uppercase">WBC</span>
+                          <input type="number" value={fields.wbcCount} onChange={e => setFields(f => ({...f, wbcCount: e.target.value}))} className="mt-1 w-full rounded-md border border-border bg-background/60 px-2 py-1.5 text-xs outline-none focus:border-primary/50" />
+                        </label>
+                      </div>
+                      
+                      <div className="grid grid-cols-2 lg:grid-cols-4 gap-2 border-t border-border pt-3">
+                        <label className="block col-span-2">
+                          <span className="text-[9px] font-mono text-muted-foreground uppercase">Formal Test Name</span>
+                          <input value={fields.labTestName} onChange={e => setFields(f => ({...f, labTestName: e.target.value}))} placeholder="e.g. Comprehensive Metabolic Panel" className="mt-1 w-full rounded-md border border-border bg-background/60 px-2 py-1.5 text-xs outline-none focus:border-primary/50" />
+                        </label>
+                        <label className="block">
+                          <span className="text-[9px] font-mono text-muted-foreground uppercase">Category</span>
+                          <input value={fields.labTestCategory} onChange={e => setFields(f => ({...f, labTestCategory: e.target.value}))} placeholder="e.g. Chemistry" className="mt-1 w-full rounded-md border border-border bg-background/60 px-2 py-1.5 text-xs outline-none focus:border-primary/50" />
+                        </label>
+                        <label className="block">
+                          <span className="text-[9px] font-mono text-muted-foreground uppercase">Result</span>
+                          <input value={fields.labResult} onChange={e => setFields(f => ({...f, labResult: e.target.value}))} placeholder="e.g. K+ 5.2 (High)" className="mt-1 w-full rounded-md border border-border bg-background/60 px-2 py-1.5 text-xs outline-none focus:border-primary/50" />
+                        </label>
+                      </div>
                     </div>
                   )}
 
+                  {/* Allergies */}
+                  {['doctor', 'nurse'].includes(user?.role) && (
+                    <div className="rounded-xl border border-border bg-background/40 p-4 space-y-3">
+                      <p className="text-[10px] font-mono uppercase tracking-widest text-muted-foreground border-b border-border pb-2">Allergies</p>
+                      <div className="grid grid-cols-3 gap-2">
+                        <label className="block col-span-1">
+                          <span className="text-[9px] font-mono text-muted-foreground uppercase">Allergen</span>
+                          <input value={fields.allergyName} onChange={e => setFields(f => ({...f, allergyName: e.target.value}))} placeholder="e.g. Penicillin" className="mt-1 w-full rounded-md border border-border bg-background/60 px-2 py-1.5 text-xs outline-none focus:border-primary/50" />
+                        </label>
+                        <label className="block col-span-2">
+                          <span className="text-[9px] font-mono text-muted-foreground uppercase flex justify-between">Reaction <span className="text-primary cursor-pointer text-[9px]">Severity: <select value={fields.allergySeverity} onChange={e => setFields(f => ({...f, allergySeverity: e.target.value}))} className="bg-transparent outline-none cursor-pointer"><option value="mild" className="bg-background">Mild</option><option value="moderate" className="bg-background">Moderate</option><option value="severe" className="bg-background">Severe</option></select></span></span>
+                          <input value={fields.allergyReaction} onChange={e => setFields(f => ({...f, allergyReaction: e.target.value}))} placeholder="e.g. Hives, Anaphylaxis" className="mt-1 w-full rounded-md border border-border bg-background/60 px-2 py-1.5 text-xs outline-none focus:border-primary/50" />
+                        </label>
+                      </div>
+                    </div>
+                  )}
                 </div>
 
                 {/* Progress Note & Commit */}
