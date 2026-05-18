@@ -10,6 +10,30 @@ const auditService = require('../audit/audit.service');
 const aiService = require('../ai/ai.service');
 
 class IcuService {
+  // ── Admin: Create Resource ───────────────────────────────────
+
+  async createResource({ resourceType, identifier, location, department }, requestingUser) {
+    const resource = await prisma.icuResource.create({
+      data: {
+        resourceType,
+        identifier,
+        location: location || 'Main ICU',
+        department: department || 'Critical Care',
+        status: 'AVAILABLE'
+      }
+    });
+    
+    auditService.log({
+      userId: requestingUser.id,
+      action: 'CREATE_RESOURCE',
+      entity: 'IcuResource',
+      entityId: resource.id,
+      newValue: { resourceType, identifier }
+    });
+
+    return resource;
+  }
+
   // ── Allocate ICU Resource ────────────────────────────────────
 
   async allocateResource({ patientId, resourceType, reason }, requestingUser) {

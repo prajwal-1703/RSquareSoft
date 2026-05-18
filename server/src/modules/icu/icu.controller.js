@@ -6,6 +6,15 @@ const icuService = require('./icu.service');
 const ApiResponse = require('../../utils/apiResponse');
 
 class IcuController {
+  async createResource(req, res, next) {
+    try {
+      const resource = await icuService.createResource(req.body, req.user);
+      return ApiResponse.created(res, resource, 'Resource created successfully');
+    } catch (err) {
+      next(err);
+    }
+  }
+
   async allocate(req, res, next) {
     try {
       const allocation = await icuService.allocateResource(req.body, req.user);

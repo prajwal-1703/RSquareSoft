@@ -9,6 +9,9 @@ const { authorize, Roles } = require('../../middleware/authorize');
 
 router.use(authenticate);
 
+// POST /api/icu/resources
+router.post('/resources', authorize('admin'), icuController.createResource);
+
 // POST /api/icu/allocate
 router.post('/allocate', authorize(...Roles.ALLOCATORS), icuController.allocate);
 

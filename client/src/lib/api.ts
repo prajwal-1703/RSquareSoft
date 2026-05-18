@@ -193,6 +193,10 @@ export const icuApi = {
     const res = await api.post(`/icu/predict/${patientId}`);
     return res.data;
   },
+  createResource: async (body: { resourceType: "ICU_BED" | "VENTILATOR"; identifier: string; location?: string; department?: string }) => {
+    const res = await api.post("/icu/resources", body);
+    return res.data;
+  },
 };
 
 // ════════════════════════════════════════════════════════════════

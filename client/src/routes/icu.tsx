@@ -1,4 +1,5 @@
 import { createFileRoute } from "@tanstack/react-router";
+import { useState } from "react";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { motion } from "framer-motion";
 import { ArrowRight, BedDouble, BrainCircuit, Loader2, Wind } from "lucide-react";
@@ -53,6 +54,17 @@ function ICU() {
     onSuccess: () => {
       qc.invalidateQueries({ queryKey: ["icu-occupancy"] });
       qc.invalidateQueries({ queryKey: ["emergency-queue"] });
+    },
+  });
+
+  const [newResourceType, setNewResourceType] = useState<"ICU_BED" | "VENTILATOR">("ICU_BED");
+  const [newResourceIdentifier, setNewResourceIdentifier] = useState("");
+
+  const createMutation = useMutation({
+    mutationFn: (data: { resourceType: "ICU_BED" | "VENTILATOR"; identifier: string }) => icuApi.createResource(data),
+    onSuccess: () => {
+      qc.invalidateQueries({ queryKey: ["icu-occupancy"] });
+      setNewResourceIdentifier("");
     },
   });
 
@@ -216,6 +228,43 @@ function ICU() {
             )}
           </div>
         </Card>
+
+        {/* Admin Resource Control Panel */}
+        {['admin'].includes(user?.role) && (
+          <Card title="Infrastructure Control" className="col-span-12" glow="emerald">
+            <div className="flex flex-col sm:flex-row items-end gap-3 p-4 rounded-xl border border-border bg-background/40">
+              <label className="block flex-1 max-w-xs">
+                <span className="text-[10px] font-mono text-muted-foreground uppercase mb-1 block">Resource Type</span>
+                <select 
+                  value={newResourceType} 
+                  onChange={e => setNewResourceType(e.target.value as any)}
+                  className="w-full rounded-md border border-border bg-background/60 px-3 py-2.5 text-sm outline-none focus:border-emerald/50 text-foreground cursor-pointer"
+                >
+                  <option value="ICU_BED" className="bg-background">ICU Bed</option>
+                  <option value="VENTILATOR" className="bg-background">Ventilator</option>
+                </select>
+              </label>
+              
+              <label className="block flex-1 max-w-xs">
+                <span className="text-[10px] font-mono text-muted-foreground uppercase mb-1 block">Identifier</span>
+                <input 
+                  value={newResourceIdentifier} 
+                  onChange={e => setNewResourceIdentifier(e.target.value)}
+                  placeholder="e.g., BED-21 or VENT-08" 
+                  className="w-full rounded-md border border-border bg-background/60 px-3 py-2.5 text-sm outline-none focus:border-emerald/50" 
+                />
+              </label>
+
+              <button 
+                onClick={() => createMutation.mutate({ resourceType: newResourceType, identifier: newResourceIdentifier })}
+                disabled={!newResourceIdentifier || createMutation.isPending}
+                className="rounded-md bg-emerald/20 border border-emerald/40 text-emerald px-6 py-2.5 text-xs font-mono uppercase tracking-widest hover:bg-emerald/30 disabled:opacity-50 transition-all"
+              >
+                {createMutation.isPending ? "Provisioning..." : "Provision Resource"}
+              </button>
+            </div>
+          </Card>
+        )}
       </div>
     </AppShell>
   );
