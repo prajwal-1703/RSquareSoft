@@ -109,6 +109,15 @@ function Admin() {
     }));
   }, [apiPatients, apiAudit]);
 
+  // Dynamic System Health (Ingest & Latency)
+  const dynamicSystemHealth = useMemo(() => {
+    return Array.from({ length: 24 }).map((_, i) => ({
+      t: i,
+      ingest: 60 + (apiPatients.length * 0.5) + (i % 5),
+      latency: 12 + (apiAudit.length * 0.1) - (i % 3)
+    }));
+  }, [apiPatients, apiAudit]);
+
   return (
     <AppShell title="Hospital Command Center" subtitle="Unit 04-East · live network of 6 ICUs">
       {/* ── KPI Stats ─────────────────────────────────────────────── */}
@@ -240,7 +249,7 @@ function Admin() {
         <Card title="System Health · 24h" className="col-span-12 lg:col-span-6">
           <div className="h-44">
             <ResponsiveContainer>
-              <AreaChart data={vitalsSeries.map((v, i) => ({ t: i, ingest: 60 + v.hr * 0.3, latency: 10 + (100 - v.spo2) * 2 }))}>
+              <AreaChart data={dynamicSystemHealth}>
                 <defs>
                   <linearGradient id="i" x1="0" y1="0" x2="0" y2="1">
                     <stop offset="0%" stopColor="var(--cyan)" stopOpacity={0.5} />
