@@ -32,7 +32,7 @@ const Roles = {
   CLINICAL: ['doctor', 'nurse'],
   ADMIN_ONLY: ['admin'],
   DOCTORS_ONLY: ['doctor'],
-  ALLOCATORS: ['doctor', 'admin'],
+  ALLOCATORS: ['doctor', 'nurse', 'admin'],
   AUDIT_VIEWERS: ['admin', 'doctor'],
   LAB_AND_DOCTOR: ['doctor', 'lab_technician'],
 };

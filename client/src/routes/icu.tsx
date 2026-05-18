@@ -1,5 +1,5 @@
 import { createFileRoute } from "@tanstack/react-router";
-import { useQuery } from "@tanstack/react-query";
+import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { motion } from "framer-motion";
 import { ArrowRight, BedDouble, BrainCircuit, Loader2, Wind } from "lucide-react";
 import { AppShell, Card, SeverityChip } from "@/components/AppShell";
@@ -15,6 +15,7 @@ export const Route = createFileRoute("/icu")({
 
 function ICU() {
   const { user } = useAuth();
+  const qc = useQueryClient();
   const queue = [...patients].sort((a, b) => b.risk - a.risk).slice(0, 6);
 
   const occupancyQuery = useQuery({
@@ -37,6 +38,24 @@ function ICU() {
   const bedOccupied = occ?.icuBeds?.OCCUPIED ?? 56;
   const bedTotal = occ?.icuBeds?.total ?? 64;
   const eqPatients = (emergencyQueue.data as any[]) ?? [];
+
+  const allocateMutation = useMutation({
+    mutationFn: (data: { patientId: string; resourceType: "ICU_BED" | "VENTILATOR" }) =>
+      icuApi.allocate({ ...data, reason: "Emergency queue priority allocation" }),
+    onSuccess: () => {
+      qc.invalidateQueries({ queryKey: ["icu-occupancy"] });
+      qc.invalidateQueries({ queryKey: ["emergency-queue"] });
+    },
+  });
+
+  const aiRecommendations = eqPatients.slice(0, 3).map((p: any) => ({
+    patientId: p.patientId,
+    from: p.hasIcuBed ? "Standard Ward" : "Emergency Room",
+    to: p.hasIcuBed ? "Ventilator Support" : "ICU Bed",
+    reason: `Risk score ${p.riskScore}% — allocate immediately`,
+    conf: Math.min(99, p.riskScore + 12),
+    resourceType: p.hasIcuBed ? "VENTILATOR" : "ICU_BED"
+  }));
 
   return (
     <AppShell title="ICU Allocation Engine" subtitle="Live bed & ventilator routing · 6 ICUs synchronized">
@@ -113,8 +132,12 @@ function ICU() {
                   </div>
                   <div className="w-32"><RiskBar value={riskScore / 100} color={color} /></div>
                   <span className="font-mono text-sm w-14 text-right" style={{ color }}>{riskScore}%</span>
-                  <button className="rounded-md bg-primary/15 border border-primary/30 text-primary px-2.5 py-1.5 text-[10px] font-mono uppercase tracking-widest hover:bg-primary/25 inline-flex items-center gap-1">
-                    Allocate <ArrowRight className="size-3" />
+                  <button 
+                    onClick={() => allocateMutation.mutate({ patientId: p.patientId, resourceType: p.hasIcuBed ? "VENTILATOR" : "ICU_BED" })}
+                    disabled={allocateMutation.isPending}
+                    className="rounded-md bg-primary/15 border border-primary/30 text-primary px-2.5 py-1.5 text-[10px] font-mono uppercase tracking-widest hover:bg-primary/25 inline-flex items-center gap-1 disabled:opacity-50"
+                  >
+                    {allocateMutation.isPending ? <Loader2 className="size-3 animate-spin" /> : "Allocate"} <ArrowRight className="size-3" />
                   </button>
                 </motion.div>
               );
@@ -124,11 +147,7 @@ function ICU() {
 
         <Card title="AI Recommendation Engine" className="col-span-12 lg:col-span-5" glow="cyan">
           <div className="space-y-3">
-            {[
-              { from: "ICU-B Bed 21", to: "Step-down 12", reason: "Stable >4h, predictive risk 0.08", conf: 96 },
-              { from: "ER Bay 03", to: "ICU-A Bed 07", reason: "Trauma · predicted mortality 0.71", conf: 92 },
-              { from: "ICU-C Bed 18", to: "Ward 4B", reason: "DKA recovery trend –6%/4h", conf: 88 },
-            ].map((r, i) => (
+            {aiRecommendations.length > 0 ? aiRecommendations.map((r, i) => (
               <div key={i} className="rounded-xl border border-border bg-background/40 p-3">
                 <div className="flex items-center justify-between">
                   <span className="flex items-center gap-2 text-sm">
@@ -142,11 +161,21 @@ function ICU() {
                   <BrainCircuit className="size-3 mt-0.5 text-emerald shrink-0" /> {r.reason}
                 </p>
                 <div className="mt-2 flex gap-2">
-                  <button className="flex-1 rounded-md bg-emerald/15 border border-emerald/30 text-emerald py-1.5 text-[10px] font-mono uppercase tracking-widest hover:bg-emerald/25">Accept</button>
+                  <button 
+                    onClick={() => allocateMutation.mutate({ patientId: r.patientId, resourceType: r.resourceType as any })}
+                    disabled={allocateMutation.isPending}
+                    className="flex-1 rounded-md bg-emerald/15 border border-emerald/30 text-emerald py-1.5 text-[10px] font-mono uppercase tracking-widest hover:bg-emerald/25 disabled:opacity-50 inline-flex items-center justify-center gap-2"
+                  >
+                    {allocateMutation.isPending ? <Loader2 className="size-3 animate-spin" /> : "Accept"}
+                  </button>
                   <button className="flex-1 rounded-md border border-border bg-background/60 py-1.5 text-[10px] font-mono uppercase tracking-widest hover:bg-white/5">Defer</button>
                 </div>
               </div>
-            ))}
+            )) : (
+              <div className="py-8 text-center text-xs text-muted-foreground">
+                No active critical recommendations at this time.
+              </div>
+            )}
           </div>
         </Card>
       </div>
