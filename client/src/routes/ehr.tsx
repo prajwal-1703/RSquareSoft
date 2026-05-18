@@ -90,7 +90,8 @@ function EHR() {
     diagnosisName: "",
     diagnosisSeverity: "moderate",
     medicationName: "",
-    medicationDosage: ""
+    medicationDosage: "",
+    labReport: ""
   });
 
   const handleSave = () => {
@@ -121,6 +122,7 @@ function EHR() {
       ...(vitals ? { vitals } : {}),
       ...(diagnosis ? { diagnosis } : {}),
       ...(medication ? { medication } : {}),
+      ...(fields.labReport ? { labReport: { summary: fields.labReport } } : {}),
       ...(fields.notes ? { notes: fields.notes } : {})
     });
   };
@@ -240,7 +242,7 @@ function EHR() {
         {/* ── EHR Editor ───────────────────────────────────────── */}
         <div className="col-span-12 lg:col-span-6 space-y-4">
           <Card
-            title={`Editing · v${currentVersion}`}
+            title={['admin'].includes(user?.role) ? `Viewing · v${currentVersion}` : `Editing · v${currentVersion}`}
             glow="cyan"
             action={
               <div className="flex items-center gap-2">
@@ -289,82 +291,99 @@ function EHR() {
                 <div className="mt-4 grid grid-cols-1 md:grid-cols-2 gap-4">
                   
                   {/* Vitals & Support */}
-                  <div className="rounded-xl border border-border bg-background/40 p-4 space-y-3">
-                    <p className="text-[10px] font-mono uppercase tracking-widest text-muted-foreground border-b border-border pb-2">Vitals & Support</p>
-                    <div className="grid grid-cols-2 gap-3">
-                      <label className="block">
-                        <span className="text-[9px] font-mono text-muted-foreground uppercase">Heart Rate (bpm)</span>
-                        <input type="number" value={fields.heartRate} onChange={e => setFields(f => ({...f, heartRate: e.target.value}))} className="mt-1 w-full rounded-md border border-border bg-background/60 px-2 py-1.5 text-xs outline-none focus:border-primary/50" />
-                      </label>
-                      <label className="block">
-                        <span className="text-[9px] font-mono text-muted-foreground uppercase">SpO2 (%)</span>
-                        <input type="number" value={fields.spo2} onChange={e => setFields(f => ({...f, spo2: e.target.value}))} className="mt-1 w-full rounded-md border border-border bg-background/60 px-2 py-1.5 text-xs outline-none focus:border-primary/50" />
-                      </label>
-                      <label className="block col-span-2">
-                        <span className="text-[9px] font-mono text-muted-foreground uppercase">GCS Score (3-15)</span>
-                        <input type="number" value={fields.gcsScore} onChange={e => setFields(f => ({...f, gcsScore: e.target.value}))} className="mt-1 w-full rounded-md border border-border bg-background/60 px-2 py-1.5 text-xs outline-none focus:border-primary/50" />
-                      </label>
+                  {['doctor', 'nurse'].includes(user?.role) && (
+                    <div className="rounded-xl border border-border bg-background/40 p-4 space-y-3">
+                      <p className="text-[10px] font-mono uppercase tracking-widest text-muted-foreground border-b border-border pb-2">Vitals & Support</p>
+                      <div className="grid grid-cols-2 gap-3">
+                        <label className="block">
+                          <span className="text-[9px] font-mono text-muted-foreground uppercase">Heart Rate (bpm)</span>
+                          <input type="number" value={fields.heartRate} onChange={e => setFields(f => ({...f, heartRate: e.target.value}))} className="mt-1 w-full rounded-md border border-border bg-background/60 px-2 py-1.5 text-xs outline-none focus:border-primary/50" />
+                        </label>
+                        <label className="block">
+                          <span className="text-[9px] font-mono text-muted-foreground uppercase">SpO2 (%)</span>
+                          <input type="number" value={fields.spo2} onChange={e => setFields(f => ({...f, spo2: e.target.value}))} className="mt-1 w-full rounded-md border border-border bg-background/60 px-2 py-1.5 text-xs outline-none focus:border-primary/50" />
+                        </label>
+                        <label className="block col-span-2">
+                          <span className="text-[9px] font-mono text-muted-foreground uppercase">GCS Score (3-15)</span>
+                          <input type="number" value={fields.gcsScore} onChange={e => setFields(f => ({...f, gcsScore: e.target.value}))} className="mt-1 w-full rounded-md border border-border bg-background/60 px-2 py-1.5 text-xs outline-none focus:border-primary/50" />
+                        </label>
+                      </div>
+                      <div className="flex items-center gap-4 pt-2">
+                        <label className="flex items-center gap-2 text-xs text-muted-foreground cursor-pointer hover:text-foreground transition-colors">
+                          <input type="checkbox" checked={fields.isVentilated} onChange={e => setFields(f => ({...f, isVentilated: e.target.checked}))} className="rounded border-border bg-background/60 text-primary focus:ring-primary/50" />
+                          Mechanical Vent
+                        </label>
+                        <label className="flex items-center gap-2 text-xs text-muted-foreground cursor-pointer hover:text-foreground transition-colors">
+                          <input type="checkbox" checked={fields.isOnVasopressors} onChange={e => setFields(f => ({...f, isOnVasopressors: e.target.checked}))} className="rounded border-border bg-background/60 text-primary focus:ring-primary/50" />
+                          Vasopressors
+                        </label>
+                      </div>
                     </div>
-                    <div className="flex items-center gap-4 pt-2">
-                      <label className="flex items-center gap-2 text-xs text-muted-foreground cursor-pointer hover:text-foreground transition-colors">
-                        <input type="checkbox" checked={fields.isVentilated} onChange={e => setFields(f => ({...f, isVentilated: e.target.checked}))} className="rounded border-border bg-background/60 text-primary focus:ring-primary/50" />
-                        Mechanical Vent
-                      </label>
-                      <label className="flex items-center gap-2 text-xs text-muted-foreground cursor-pointer hover:text-foreground transition-colors">
-                        <input type="checkbox" checked={fields.isOnVasopressors} onChange={e => setFields(f => ({...f, isOnVasopressors: e.target.checked}))} className="rounded border-border bg-background/60 text-primary focus:ring-primary/50" />
-                        Vasopressors
-                      </label>
-                    </div>
-                  </div>
+                  )}
 
                   {/* Diagnoses & Medications */}
-                  <div className="rounded-xl border border-border bg-background/40 p-4 space-y-3">
-                    <p className="text-[10px] font-mono uppercase tracking-widest text-muted-foreground border-b border-border pb-2">Diagnoses & Meds</p>
-                    <label className="block">
-                      <span className="text-[9px] font-mono text-muted-foreground uppercase flex items-center justify-between">New Diagnosis <select value={fields.diagnosisSeverity} onChange={e => setFields(f => ({...f, diagnosisSeverity: e.target.value}))} className="bg-transparent text-[9px] outline-none text-primary cursor-pointer"><option value="stable" className="bg-background">Stable</option><option value="high" className="bg-background">High</option><option value="critical" className="bg-background">Critical</option></select></span>
-                      <input value={fields.diagnosisName} onChange={e => setFields(f => ({...f, diagnosisName: e.target.value}))} placeholder="e.g., Acute Myocardial Infarction" className="mt-1 w-full rounded-md border border-border bg-background/60 px-2 py-1.5 text-xs outline-none focus:border-primary/50" />
-                    </label>
-                    <div className="grid grid-cols-2 gap-3 mt-3">
+                  {['doctor'].includes(user?.role) && (
+                    <div className="rounded-xl border border-border bg-background/40 p-4 space-y-3">
+                      <p className="text-[10px] font-mono uppercase tracking-widest text-muted-foreground border-b border-border pb-2">Diagnoses & Meds</p>
                       <label className="block">
-                        <span className="text-[9px] font-mono text-muted-foreground uppercase">Medication</span>
-                        <input value={fields.medicationName} onChange={e => setFields(f => ({...f, medicationName: e.target.value}))} placeholder="e.g., Norepinephrine" className="mt-1 w-full rounded-md border border-border bg-background/60 px-2 py-1.5 text-xs outline-none focus:border-primary/50" />
+                        <span className="text-[9px] font-mono text-muted-foreground uppercase flex items-center justify-between">New Diagnosis <select value={fields.diagnosisSeverity} onChange={e => setFields(f => ({...f, diagnosisSeverity: e.target.value}))} className="bg-transparent text-[9px] outline-none text-primary cursor-pointer"><option value="stable" className="bg-background">Stable</option><option value="high" className="bg-background">High</option><option value="critical" className="bg-background">Critical</option></select></span>
+                        <input value={fields.diagnosisName} onChange={e => setFields(f => ({...f, diagnosisName: e.target.value}))} placeholder="e.g., Acute Myocardial Infarction" className="mt-1 w-full rounded-md border border-border bg-background/60 px-2 py-1.5 text-xs outline-none focus:border-primary/50" />
                       </label>
+                      <div className="grid grid-cols-2 gap-3 mt-3">
+                        <label className="block">
+                          <span className="text-[9px] font-mono text-muted-foreground uppercase">Medication</span>
+                          <input value={fields.medicationName} onChange={e => setFields(f => ({...f, medicationName: e.target.value}))} placeholder="e.g., Norepinephrine" className="mt-1 w-full rounded-md border border-border bg-background/60 px-2 py-1.5 text-xs outline-none focus:border-primary/50" />
+                        </label>
+                        <label className="block">
+                          <span className="text-[9px] font-mono text-muted-foreground uppercase">Dosage</span>
+                          <input value={fields.medicationDosage} onChange={e => setFields(f => ({...f, medicationDosage: e.target.value}))} placeholder="e.g., 5mcg/min" className="mt-1 w-full rounded-md border border-border bg-background/60 px-2 py-1.5 text-xs outline-none focus:border-primary/50" />
+                        </label>
+                      </div>
+                    </div>
+                  )}
+
+                  {/* Lab Reports */}
+                  {['doctor', 'lab_technician'].includes(user?.role) && (
+                    <div className="rounded-xl border border-border bg-background/40 p-4 space-y-3">
+                      <p className="text-[10px] font-mono uppercase tracking-widest text-muted-foreground border-b border-border pb-2">Lab Reports</p>
                       <label className="block">
-                        <span className="text-[9px] font-mono text-muted-foreground uppercase">Dosage</span>
-                        <input value={fields.medicationDosage} onChange={e => setFields(f => ({...f, medicationDosage: e.target.value}))} placeholder="e.g., 5mcg/min" className="mt-1 w-full rounded-md border border-border bg-background/60 px-2 py-1.5 text-xs outline-none focus:border-primary/50" />
+                        <span className="text-[9px] font-mono text-muted-foreground uppercase">Lab Result Summary</span>
+                        <input value={fields.labReport || ""} onChange={e => setFields(f => ({...f, labReport: e.target.value}))} placeholder="e.g., CBC normal, Lactate elevated" className="mt-1 w-full rounded-md border border-border bg-background/60 px-2 py-1.5 text-xs outline-none focus:border-primary/50" />
                       </label>
                     </div>
-                  </div>
+                  )}
 
                 </div>
 
                 {/* Progress Note & Commit */}
-                <div className="mt-4 rounded-xl border border-border bg-background/40 p-4">
-                  <p className="text-[10px] font-mono uppercase tracking-widest text-muted-foreground mb-2">Progress Note</p>
-                  <textarea
-                    value={fields.notes}
-                    onChange={(e) => setFields((f) => ({ ...f, notes: e.target.value }))}
-                    placeholder="Enter clinical notes, procedure details, or plan updates..."
-                    className="w-full rounded-lg bg-background/60 border border-border p-3 text-sm leading-relaxed h-16 outline-none focus:border-primary/50 resize-none"
-                  />
-                  
-                  <div className="mt-3 flex items-center justify-between border-t border-border pt-3">
-                    <div className="flex items-center gap-2 text-[10px] font-mono text-muted-foreground">
-                      <GitBranch className="size-3" /> version-{currentVersion}
-                      <span className="size-1 rounded-full bg-muted-foreground/40" />
-                      {saveStatus === "saved" && <span className="text-emerald inline-flex items-center gap-1"><Check className="size-3" /> Saved</span>}
-                      {saveStatus === "error" && <span className="text-critical">Conflict or error</span>}
+                {['doctor', 'nurse', 'lab_technician'].includes(user?.role) && (
+                  <div className="mt-4 rounded-xl border border-border bg-background/40 p-4">
+                    <p className="text-[10px] font-mono uppercase tracking-widest text-muted-foreground mb-2">Progress Note</p>
+                    <textarea
+                      value={fields.notes}
+                      onChange={(e) => setFields((f) => ({ ...f, notes: e.target.value }))}
+                      placeholder="Enter clinical notes, procedure details, or plan updates..."
+                      className="w-full rounded-lg bg-background/60 border border-border p-3 text-sm leading-relaxed h-16 outline-none focus:border-primary/50 resize-none"
+                    />
+                    
+                    <div className="mt-3 flex items-center justify-between border-t border-border pt-3">
+                      <div className="flex items-center gap-2 text-[10px] font-mono text-muted-foreground">
+                        <GitBranch className="size-3" /> version-{currentVersion}
+                        <span className="size-1 rounded-full bg-muted-foreground/40" />
+                        {saveStatus === "saved" && <span className="text-emerald inline-flex items-center gap-1"><Check className="size-3" /> Saved</span>}
+                        {saveStatus === "error" && <span className="text-critical">Conflict or error</span>}
+                      </div>
+                      <button
+                        onClick={handleSave}
+                        disabled={updateMutation.isPending || (!fields.notes && !fields.diagnosisName && !fields.heartRate && !fields.medicationName && !fields.isVentilated && !fields.isOnVasopressors && !fields.labReport)}
+                        className="rounded-lg bg-primary px-4 py-2 text-xs font-semibold text-primary-foreground glow-cyan inline-flex items-center gap-2 disabled:opacity-60 transition-all hover:brightness-110"
+                      >
+                        {updateMutation.isPending ? <Loader2 className="size-3.5 animate-spin" /> : <Save className="size-3.5" />}
+                        Commit snapshot
+                      </button>
                     </div>
-                    <button
-                      onClick={handleSave}
-                      disabled={updateMutation.isPending || (!fields.notes && !fields.diagnosisName && !fields.heartRate && !fields.medicationName && !fields.isVentilated && !fields.isOnVasopressors)}
-                      className="rounded-lg bg-primary px-4 py-2 text-xs font-semibold text-primary-foreground glow-cyan inline-flex items-center gap-2 disabled:opacity-60 transition-all hover:brightness-110"
-                    >
-                      {updateMutation.isPending ? <Loader2 className="size-3.5 animate-spin" /> : <Save className="size-3.5" />}
-                      Commit snapshot
-                    </button>
                   </div>
-                </div>
+                )}
               </>
             ) : (
               <div className="py-16 text-center text-muted-foreground text-sm">
