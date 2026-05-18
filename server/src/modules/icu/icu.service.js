@@ -12,13 +12,12 @@ const aiService = require('../ai/ai.service');
 class IcuService {
   // ── Admin: Create Resource ───────────────────────────────────
 
-  async createResource({ resourceType, identifier, location, department }, requestingUser) {
+  async createResource({ resourceType, identifier, location }, requestingUser) {
     const resource = await prisma.icuResource.create({
       data: {
         resourceType,
         identifier,
         location: location || 'Main ICU',
-        department: department || 'Critical Care',
         status: 'AVAILABLE'
       }
     });
