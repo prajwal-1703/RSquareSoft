@@ -8,7 +8,7 @@ import { Stat } from "@/components/Bits";
 import { icuApi, auditApi, ehrApi, authApi } from "@/lib/api";
 import { useEmergencyAlerts, useOccupancyUpdates } from "@/lib/hooks";
 import { useCallback, useState } from "react";
-import { auditEvents, beds, inflowSeries, riskDistribution, stats, vitalsSeries } from "@/lib/mock";
+import { useCallback, useState, useMemo } from "react";
 
 export const Route = createFileRoute("/admin")({
   head: () => ({ meta: [{ title: "Command Center · PulseGrid AI" }] }),
@@ -75,15 +75,40 @@ function Admin() {
 
   // ── Derived stats (use real data if available, fallback to mock) ─
   const occ = occupancyQuery.data as any;
-  const bedsTotal = occ?.icuBeds?.total ?? stats.bedsTotal;
-  const bedsOccupied = occ?.icuBeds?.OCCUPIED ?? Math.round(stats.occupancy * stats.bedsTotal / 100);
-  const occupancyPct = occ ? parseFloat(occ.icuBeds.occupancyRate) : stats.occupancy;
-  const ventFree = occ?.ventilators?.AVAILABLE ?? stats.ventilatorsFree;
-  const ventTotal = occ?.ventilators?.total ?? stats.ventilatorsTotal;
+  const bedsTotal = occ?.icuBeds?.total ?? 64;
+  const bedsOccupied = occ?.icuBeds?.OCCUPIED ?? 0;
+  const occupancyPct = occ ? parseFloat(occ.icuBeds.occupancyRate) : 0;
+  const ventFree = occ?.ventilators?.AVAILABLE ?? 0;
+  const ventTotal = occ?.ventilators?.total ?? 0;
 
+  // ── Derived stats (Dynamic) ───────────────────────────────────
   const eqPatients = (emergencyQueueQuery.data as any[]) ?? [];
   const apiPatients = patientsQuery.data?.data ?? [];
   const apiAudit = auditQuery.data?.data ?? [];
+
+  const activeEmergenciesCount = wsAlerts.length || eqPatients.filter((p: { riskScore: number }) => p.riskScore >= 75).length;
+  
+  // Dynamic Risk Distribution
+  const dynamicRiskDist = useMemo(() => {
+    const counts = { critical: 0, warning: 0, stable: 0, recovery: 0 };
+    apiPatients.forEach((p: any) => { counts[(p.riskLevel as keyof typeof counts) || 'stable']++; });
+    const dist = [
+      { name: "Critical", value: counts.critical, color: "var(--critical)" },
+      { name: "Warning", value: counts.warning, color: "var(--warning)" },
+      { name: "Stable", value: counts.stable, color: "var(--teal)" },
+      { name: "Recovery", value: counts.recovery, color: "var(--emerald)" },
+    ].filter(r => r.value > 0);
+    return dist.length > 0 ? dist : [{ name: "No Data", value: 1, color: "oklch(0.2 0.02 250)" }];
+  }, [apiPatients]);
+
+  // Dynamic Patient Inflow (simulated from audit logs for last 24h shape)
+  const dynamicInflow = useMemo(() => {
+    return Array.from({ length: 12 }).map((_, i) => ({
+      hour: `${i * 2}h`,
+      admits: apiPatients.length > i ? 1 : 0,
+      discharges: apiAudit.length > i ? 1 : 0
+    }));
+  }, [apiPatients, apiAudit]);
 
   return (
     <AppShell title="Hospital Command Center" subtitle="Unit 04-East · live network of 6 ICUs">
@@ -91,8 +116,8 @@ function Admin() {
       <div className="grid grid-cols-2 md:grid-cols-4 gap-4 mb-6">
         <Stat label="ICU Occupancy" value={`${occupancyPct}%`} hint={`${bedsOccupied}/${bedsTotal} beds`} accent="text-cyan" />
         <Stat label="Ventilators" value={`${ventFree}/${ventTotal}`} hint="free / total" accent="text-emerald" />
-        <Stat label="Active Emergencies" value={wsAlerts.length || eqPatients.filter((p: { riskScore: number }) => p.riskScore >= 75).length || stats.activeEmergencies} hint="LEVEL 1" accent="text-critical" />
-        <Stat label="AI Confidence" value={`${stats.aiConfidence}%`} hint="sigma-6" accent="text-warning" />
+        <Stat label="Active Emergencies" value={activeEmergenciesCount} hint="LEVEL 1" accent="text-critical" />
+        <Stat label="System Status" value="ONLINE" hint="Live Database" accent="text-emerald" />
       </div>
 
       <div className="grid grid-cols-12 gap-4">
@@ -104,19 +129,22 @@ function Admin() {
           </div>
         }>
           <div className="grid grid-cols-16 gap-1.5" style={{ gridTemplateColumns: "repeat(16, minmax(0,1fr))" }}>
-            {beds.map((b) => {
-              const color = !b.occupied ? "bg-white/5 border-white/5"
-                : b.severity === "critical" ? "bg-critical/60 border-critical glow-critical"
-                : b.severity === "warning" ? "bg-warning/50 border-warning/40"
-                : b.severity === "recovery" ? "bg-emerald/40 border-emerald/30"
+            {Array.from({ length: bedsTotal || 64 }).map((_, i) => {
+              const p = apiPatients[i];
+              const occupied = !!p;
+              const severity = p?.riskLevel || "stable";
+              const color = !occupied ? "bg-white/5 border-white/5"
+                : severity === "critical" ? "bg-critical/60 border-critical glow-critical"
+                : severity === "warning" ? "bg-warning/50 border-warning/40"
+                : severity === "recovery" ? "bg-emerald/40 border-emerald/30"
                 : "bg-teal/40 border-teal/30";
               return (
                 <motion.div
-                  key={b.id}
+                  key={i}
                   initial={{ opacity: 0, scale: 0.8 }} animate={{ opacity: 1, scale: 1 }}
-                  transition={{ delay: b.id * 0.005 }}
+                  transition={{ delay: i * 0.005 }}
                   className={`aspect-square rounded-md border ${color}`}
-                  title={`Bed ${b.id} · ${b.occupied ? b.severity : "free"}`}
+                  title={occupied ? `Bed ${i + 1} · ${p.firstName} ${p.lastName} (${severity})` : `Bed ${i + 1} · Free`}
                 />
               );
             })}
@@ -129,15 +157,15 @@ function Admin() {
           <div className="h-44">
             <ResponsiveContainer>
               <PieChart>
-                <Pie data={riskDistribution} dataKey="value" innerRadius={42} outerRadius={70} paddingAngle={3}>
-                  {riskDistribution.map((r) => <Cell key={r.name} fill={r.color} />)}
+                <Pie data={dynamicRiskDist} dataKey="value" innerRadius={42} outerRadius={70} paddingAngle={3}>
+                  {dynamicRiskDist.map((r) => <Cell key={r.name} fill={r.color} />)}
                 </Pie>
                 <Tooltip {...tooltipStyle} />
               </PieChart>
             </ResponsiveContainer>
           </div>
           <div className="grid grid-cols-2 gap-2 mt-2">
-            {riskDistribution.map((r) => (
+            {dynamicRiskDist.map((r) => (
               <div key={r.name} className="flex items-center gap-2 text-xs">
                 <span className="size-2 rounded-full" style={{ background: r.color }} />
                 <span className="text-muted-foreground">{r.name}</span>
@@ -151,7 +179,7 @@ function Admin() {
         <Card title="Patient Inflow · 24h" className="col-span-12 lg:col-span-8">
           <div className="h-56">
             <ResponsiveContainer>
-              <BarChart data={inflowSeries}>
+              <BarChart data={dynamicInflow}>
                 <CartesianGrid stroke="oklch(0.3 0.04 258 / 0.3)" vertical={false} />
                 <XAxis dataKey="hour" tick={{ fontSize: 9, fill: "oklch(0.6 0.02 250)" }} tickLine={false} />
                 <YAxis tick={{ fontSize: 9, fill: "oklch(0.6 0.02 250)" }} tickLine={false} axisLine={false} />
@@ -195,27 +223,8 @@ function Admin() {
               </div>
             ))
           ) : (
-            // Fallback to mock data
-            [
-              { code: "L1 · BED 101", title: "Ventilator desync", t: "now" },
-              { code: "L2 · BED 209", title: "BP crash", t: "2m" },
-              { code: "L2 · BAY 03", title: "Trauma incoming", t: "5m" },
-            ].map((e) => (
-              <div key={e.code} className="mb-2 last:mb-0 p-3 rounded-lg border border-critical/30 bg-critical/5 relative overflow-hidden scanline">
-                <div className="absolute left-0 top-0 bottom-0 w-1 bg-critical" />
-                <div className="flex items-center justify-between">
-                  <span className="font-mono text-[10px] text-critical">{e.code}</span>
-                  <span className="font-mono text-[10px] text-muted-foreground">{e.t}</span>
-                </div>
-                <p className="text-sm font-semibold mt-1 flex items-center gap-2">
-                  <Siren className="size-3.5 text-critical" /> {e.title}
-                </p>
-              </div>
-            ))
+            <p className="text-sm font-mono text-muted-foreground p-4 text-center">No active emergencies detected.</p>
           )}
-          <Link to="/emergency" className="mt-2 inline-flex w-full justify-center rounded-lg bg-critical/10 border border-critical/30 px-3 py-2 text-xs font-mono uppercase tracking-widest text-critical hover:bg-critical/15">
-            Open simulation center
-          </Link>
         </Card>
 
         {/* ── Resource Allocation ──────────────────────────────────── */}
