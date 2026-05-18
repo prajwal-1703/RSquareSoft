@@ -1,0 +1,244 @@
+Build a futuristic, enterprise-grade healthcare AI platform UI called “PulseGrid AI” for a hackathon project focused on real-time ICU coordination, AI-powered mortality risk prediction, concurrent-safe EHR management, and intelligent resource allocation.
+
+The design should feel like:
+
+* a next-generation hospital command center
+* modern healthcare intelligence platform
+* critical care operations dashboard
+* real-time emergency coordination system
+
+The UI should NOT look like:
+
+* generic hospital software
+* plain admin dashboard
+* old healthcare ERP
+* traditional medical website
+
+The design language should combine:
+
+* modern healthcare aesthetics
+* AI intelligence feel
+* mission-critical monitoring systems
+* real-time operational visibility
+* cyber-medical interface styling
+
+Core visual inspiration:
+
+* ICU monitoring systems
+* futuristic medical command centers
+* emergency response systems
+* enterprise SaaS dashboards
+* AI operations platforms
+
+Tech Stack:
+
+* React
+* TailwindCSS
+* shadcn/ui
+* Framer Motion
+* Recharts
+* lucide-react icons
+
+Theme Requirements:
+
+* dark mode primary theme
+* glassmorphism cards
+* subtle gradients
+* glowing critical alerts
+* smooth animations
+* real-time pulse-like transitions
+* soft shadows
+* rounded 2xl cards
+* minimal but information-dense UI
+
+Primary Colors:
+
+* deep navy
+* black-blue
+* cyan
+* teal
+* healthcare green
+* emergency red
+* warning amber
+
+Avoid:
+
+* overly colorful UI
+* cartoonish design
+* generic bootstrap layouts
+* cluttered interfaces
+* excessive white backgrounds
+
+Typography:
+
+* clean futuristic typography
+* strong hierarchy
+* bold dashboards
+* compact operational data display
+
+Build the following pages and modules:
+
+1. Landing Page
+
+* futuristic hero section
+* animated healthcare grid background
+* AI healthcare visualization
+* platform introduction
+* real-time stats section
+* architecture highlights
+* problem/solution sections
+* animated ICU monitoring visuals
+* responsive navbar
+* feature cards
+* modern footer
+
+2. Login & Authentication
+
+* role-based login
+* doctor login
+* nurse login
+* admin login
+* lab technician login
+* futuristic authentication UI
+* healthcare identity feel
+
+3. Admin Command Center Dashboard
+   This should feel like a hospital war-room.
+
+Include:
+
+* ICU occupancy heatmap
+* ventilator availability
+* live patient inflow
+* emergency alerts
+* system health metrics
+* resource allocation analytics
+* AI risk distribution charts
+* active emergencies panel
+* audit monitoring timeline
+* live hospital activity feed
+
+4. Doctor Dashboard
+   Include:
+
+* patient queue
+* severity-ranked patients
+* AI mortality risk score cards
+* RED/YELLOW/GREEN prioritization
+* live patient vitals
+* emergency recommendations
+* ICU request controls
+* EHR editing interface
+* realtime alerts
+* patient timeline visualization
+
+5. Nurse Dashboard
+   Include:
+
+* assigned patients
+* vitals monitoring
+* medication schedules
+* emergency notifications
+* live update feed
+* quick patient status actions
+
+6. EHR Management Interface
+   This is extremely important.
+
+The interface should visually demonstrate:
+
+* concurrent-safe updates
+* medical history consistency
+* version control
+* auditability
+
+Include:
+
+* patient timeline
+* editable medical records
+* update history
+* version snapshots
+* activity logs
+* who updated what
+* timestamps
+* live sync indicators
+* conflict detection visualization
+
+7. ICU Allocation Engine UI
+   This is the core innovation section.
+
+Include:
+
+* ICU bed map
+* ventilator allocation panel
+* dynamic patient prioritization
+* severity scoring
+* emergency reallocation controls
+* live resource usage
+* queue management
+* AI recommendation panel
+* allocation decision visualization
+
+8. AI Intelligence Panel
+   Include:
+
+* mortality risk predictions
+* severity trends
+* deterioration forecasting
+* risk analytics
+* prediction confidence
+* patient escalation suggestions
+* AI insights panel
+* realtime recommendation engine
+
+9. Emergency Simulation Screen
+   This should be visually stunning.
+
+Simulate:
+
+* mass casualty events
+* ICU overload
+* concurrent allocation requests
+* emergency escalation
+
+Include:
+
+* flashing critical alerts
+* live patient inflow
+* dynamic resource movement
+* realtime decision engine visualization
+
+UI/UX Requirements:
+
+* fully responsive
+* premium enterprise feel
+* smooth realtime animations
+* loading skeletons
+* transitions between dashboards
+* websocket/live-system feeling
+* operational intelligence aesthetic
+
+Micro-interactions:
+
+* glowing alerts
+* animated status indicators
+* pulse effects
+* live syncing animations
+* realtime counters
+* animated charts
+* smooth modal transitions
+
+Data Visualization:
+Use:
+
+* line charts
+* area charts
+* heatmaps
+* radial severity indicators
+* occupancy graphs
+* realtime activity streams
+
+The overall experience should feel like:
+“AI-powered emergency healthcare infrastructure built for the future.”
+
+The UI should look hackathon-winning, visually impressive, technically advanced, and production-grade.
