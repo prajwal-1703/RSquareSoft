@@ -48,14 +48,17 @@ function ICU() {
     },
   });
 
-  const aiRecommendations = eqPatients.slice(0, 3).map((p: any) => ({
-    patientId: p.patientId,
-    from: p.hasIcuBed ? "Standard Ward" : "Emergency Room",
-    to: p.hasIcuBed ? "Ventilator Support" : "ICU Bed",
-    reason: `Risk score ${p.riskScore}% — allocate immediately`,
-    conf: Math.min(99, p.riskScore + 12),
-    resourceType: p.hasIcuBed ? "VENTILATOR" : "ICU_BED"
-  }));
+  const aiRecommendations = eqPatients
+    .filter((p: any) => !(p.hasIcuBed && p.hasVentilator))
+    .slice(0, 3)
+    .map((p: any) => ({
+      patientId: p.patientId,
+      from: p.hasIcuBed ? "Standard Ward" : "Emergency Room",
+      to: p.hasIcuBed ? "Ventilator Support" : "ICU Bed",
+      reason: `Risk score ${p.riskScore}% — allocate immediately`,
+      conf: Math.min(99, p.riskScore + 12),
+      resourceType: p.hasIcuBed ? "VENTILATOR" : "ICU_BED"
+    }));
 
   return (
     <AppShell title="ICU Allocation Engine" subtitle="Live bed & ventilator routing · 6 ICUs synchronized">
@@ -132,13 +135,19 @@ function ICU() {
                   </div>
                   <div className="w-32"><RiskBar value={riskScore / 100} color={color} /></div>
                   <span className="font-mono text-sm w-14 text-right" style={{ color }}>{riskScore}%</span>
-                  <button 
-                    onClick={() => allocateMutation.mutate({ patientId: p.patientId, resourceType: p.hasIcuBed ? "VENTILATOR" : "ICU_BED" })}
-                    disabled={allocateMutation.isPending}
-                    className="rounded-md bg-primary/15 border border-primary/30 text-primary px-2.5 py-1.5 text-[10px] font-mono uppercase tracking-widest hover:bg-primary/25 inline-flex items-center gap-1 disabled:opacity-50"
-                  >
-                    {allocateMutation.isPending ? <Loader2 className="size-3 animate-spin" /> : "Allocate"} <ArrowRight className="size-3" />
-                  </button>
+                  {p.hasIcuBed && p.hasVentilator ? (
+                    <span className="rounded-md bg-emerald/10 text-emerald px-2.5 py-1.5 text-[10px] font-mono uppercase tracking-widest inline-flex items-center">
+                      Fully Supported
+                    </span>
+                  ) : (
+                    <button 
+                      onClick={() => allocateMutation.mutate({ patientId: p.patientId, resourceType: p.hasIcuBed ? "VENTILATOR" : "ICU_BED" })}
+                      disabled={allocateMutation.isPending}
+                      className="rounded-md bg-primary/15 border border-primary/30 text-primary px-2.5 py-1.5 text-[10px] font-mono uppercase tracking-widest hover:bg-primary/25 inline-flex items-center gap-1 disabled:opacity-50"
+                    >
+                      {allocateMutation.isPending ? <Loader2 className="size-3 animate-spin" /> : (p.hasIcuBed ? "Add Vent" : "Allocate Bed")} <ArrowRight className="size-3" />
+                    </button>
+                  )}
                 </motion.div>
               );
             })}
