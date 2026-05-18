@@ -1,0 +1,368 @@
+// ═══════════════════════════════════════════════════════════════
+// PulseGrid AI — Prisma Schema
+// Critical Care Intelligence Platform Database Design
+// ═══════════════════════════════════════════════════════════════
+
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+// ── Enums ───────────────────────────────────────────────────────
+
+enum Role {
+  doctor
+  nurse
+  admin
+  lab_technician
+}
+
+enum ResourceType {
+  ICU_BED
+  VENTILATOR
+}
+
+enum ResourceStatus {
+  AVAILABLE
+  OCCUPIED
+  MAINTENANCE
+  RESERVED
+}
+
+enum AllocationStatus {
+  ACTIVE
+  RELEASED
+  TRANSFERRED
+}
+
+enum AlertSeverity {
+  INFO
+  WARNING
+  CRITICAL
+  EMERGENCY
+}
+
+enum AlertStatus {
+  ACTIVE
+  ACKNOWLEDGED
+  RESOLVED
+}
+
+enum NotificationType {
+  RISK_ALERT
+  ESCALATION
+  EMERGENCY_BROADCAST
+  ICU_ASSIGNMENT
+  EHR_UPDATE
+  SYSTEM
+}
+
+// ── Users ───────────────────────────────────────────────────────
+
+model User {
+  id            String   @id @default(uuid())
+  email         String   @unique
+  password      String
+  firstName     String   @map("first_name")
+  lastName      String   @map("last_name")
+  role          Role     @default(doctor)
+  department    String?
+  phone         String?
+  isActive      Boolean  @default(true) @map("is_active")
+  refreshToken  String?  @map("refresh_token")
+  lastLoginAt   DateTime? @map("last_login_at")
+  createdAt     DateTime @default(now()) @map("created_at")
+  updatedAt     DateTime @updatedAt @map("updated_at")
+
+  // Relations
+  auditLogs     AuditLog[]
+  allocations   Allocation[]     @relation("AllocatedBy")
+  notifications Notification[]
+  ehrUpdates    PatientVersion[] @relation("UpdatedBy")
+
+  @@map("users")
+}
+
+// ── Patients ────────────────────────────────────────────────────
+
+model Patient {
+  id              String   @id @default(uuid())
+  mrn             String   @unique @map("medical_record_number")
+  firstName       String   @map("first_name")
+  lastName        String   @map("last_name")
+  dateOfBirth     DateTime @map("date_of_birth")
+  gender          String
+  bloodType       String?  @map("blood_type")
+  contactPhone    String?  @map("contact_phone")
+  emergencyContact String? @map("emergency_contact")
+  insuranceId     String?  @map("insurance_id")
+  admissionDate   DateTime @default(now()) @map("admission_date")
+  dischargeDate   DateTime? @map("discharge_date")
+  isActive        Boolean  @default(true) @map("is_active")
+  currentRiskScore Int?     @map("current_risk_score")
+  riskLevel       String?  @map("risk_level")
+  version         Int      @default(1)
+  createdAt       DateTime @default(now()) @map("created_at")
+  updatedAt       DateTime @updatedAt @map("updated_at")
+
+  // Relations
+  versions        PatientVersion[]
+  vitals          Vital[]
+  diagnoses       Diagnosis[]
+  medications     Medication[]
+  labReports      LabReport[]
+  allergies       Allergy[]
+  allocations     Allocation[]
+  alerts          Alert[]
+
+  @@index([mrn])
+  @@index([currentRiskScore])
+  @@index([isActive])
+  @@map("patients")
+}
+
+// ── Patient Versions (EHR Versioning) ───────────────────────────
+
+model PatientVersion {
+  id            String   @id @default(uuid())
+  patientId     String   @map("patient_id")
+  version       Int
+  snapshot      Json     // Full patient state at this version
+  changesSummary String? @map("changes_summary")
+  updatedById   String   @map("updated_by_id")
+  createdAt     DateTime @default(now()) @map("created_at")
+
+  // Relations
+  patient       Patient  @relation(fields: [patientId], references: [id], onDelete: Cascade)
+  updatedBy     User     @relation("UpdatedBy", fields: [updatedById], references: [id])
+
+  @@unique([patientId, version])
+  @@index([patientId])
+  @@map("patient_versions")
+}
+
+// ── Vitals ──────────────────────────────────────────────────────
+
+model Vital {
+  id              String   @id @default(uuid())
+  patientId       String   @map("patient_id")
+  heartRate       Float?   @map("heart_rate")
+  systolicBp      Float?   @map("systolic_bp")
+  diastolicBp     Float?   @map("diastolic_bp")
+  respiratoryRate Float?   @map("respiratory_rate")
+  temperature     Float?
+  spo2            Float?
+  gcsScore        Float?   @map("gcs_score")
+  bloodGlucose    Float?   @map("blood_glucose")
+  creatinine      Float?
+  lactate         Float?
+  wbcCount        Float?   @map("wbc_count")
+  plateletCount   Float?   @map("platelet_count")
+  isVentilated    Boolean  @default(false) @map("is_ventilated")
+  isOnVasopressors Boolean @default(false) @map("is_on_vasopressors")
+  recordedAt      DateTime @default(now()) @map("recorded_at")
+  createdAt       DateTime @default(now()) @map("created_at")
+
+  // Relations
+  patient         Patient  @relation(fields: [patientId], references: [id], onDelete: Cascade)
+
+  @@index([patientId, recordedAt])
+  @@map("vitals")
+}
+
+// ── Diagnoses ───────────────────────────────────────────────────
+
+model Diagnosis {
+  id            String   @id @default(uuid())
+  patientId     String   @map("patient_id")
+  icdCode       String?  @map("icd_code")
+  description   String
+  severity      String?
+  diagnosedAt   DateTime @default(now()) @map("diagnosed_at")
+  resolvedAt    DateTime? @map("resolved_at")
+  notes         String?
+  createdAt     DateTime @default(now()) @map("created_at")
+
+  // Relations
+  patient       Patient  @relation(fields: [patientId], references: [id], onDelete: Cascade)
+
+  @@index([patientId])
+  @@map("diagnoses")
+}
+
+// ── Medications ─────────────────────────────────────────────────
+
+model Medication {
+  id            String   @id @default(uuid())
+  patientId     String   @map("patient_id")
+  name          String
+  dosage        String
+  route         String?
+  frequency     String?
+  startDate     DateTime @default(now()) @map("start_date")
+  endDate       DateTime? @map("end_date")
+  prescribedBy  String?  @map("prescribed_by")
+  isActive      Boolean  @default(true) @map("is_active")
+  createdAt     DateTime @default(now()) @map("created_at")
+
+  // Relations
+  patient       Patient  @relation(fields: [patientId], references: [id], onDelete: Cascade)
+
+  @@index([patientId])
+  @@map("medications")
+}
+
+// ── Lab Reports ─────────────────────────────────────────────────
+
+model LabReport {
+  id            String   @id @default(uuid())
+  patientId     String   @map("patient_id")
+  testName      String   @map("test_name")
+  testCategory  String?  @map("test_category")
+  result        String
+  unit          String?
+  referenceRange String? @map("reference_range")
+  isAbnormal    Boolean  @default(false) @map("is_abnormal")
+  orderedBy     String?  @map("ordered_by")
+  collectedAt   DateTime @default(now()) @map("collected_at")
+  reportedAt    DateTime? @map("reported_at")
+  createdAt     DateTime @default(now()) @map("created_at")
+
+  // Relations
+  patient       Patient  @relation(fields: [patientId], references: [id], onDelete: Cascade)
+
+  @@index([patientId])
+  @@map("lab_reports")
+}
+
+// ── Allergies ───────────────────────────────────────────────────
+
+model Allergy {
+  id            String   @id @default(uuid())
+  patientId     String   @map("patient_id")
+  allergen      String
+  severity      String?
+  reaction      String?
+  reportedAt    DateTime @default(now()) @map("reported_at")
+  createdAt     DateTime @default(now()) @map("created_at")
+
+  // Relations
+  patient       Patient  @relation(fields: [patientId], references: [id], onDelete: Cascade)
+
+  @@index([patientId])
+  @@map("allergies")
+}
+
+// ── ICU Resources ───────────────────────────────────────────────
+
+model IcuResource {
+  id            String         @id @default(uuid())
+  resourceType  ResourceType   @map("resource_type")
+  identifier    String         @unique  // e.g., "ICU-BED-01", "VENT-03"
+  location      String?
+  status        ResourceStatus @default(AVAILABLE)
+  metadata      Json?
+  createdAt     DateTime       @default(now()) @map("created_at")
+  updatedAt     DateTime       @updatedAt @map("updated_at")
+
+  // Relations
+  allocations   Allocation[]
+
+  @@index([resourceType, status])
+  @@map("icu_resources")
+}
+
+// ── Allocations ─────────────────────────────────────────────────
+
+model Allocation {
+  id            String           @id @default(uuid())
+  resourceId    String           @map("resource_id")
+  patientId     String           @map("patient_id")
+  allocatedById String           @map("allocated_by_id")
+  status        AllocationStatus @default(ACTIVE)
+  priorityScore Int              @default(0) @map("priority_score")
+  reason        String?
+  allocatedAt   DateTime         @default(now()) @map("allocated_at")
+  releasedAt    DateTime?        @map("released_at")
+  createdAt     DateTime         @default(now()) @map("created_at")
+
+  // Relations
+  resource      IcuResource      @relation(fields: [resourceId], references: [id])
+  patient       Patient          @relation(fields: [patientId], references: [id])
+  allocatedBy   User             @relation("AllocatedBy", fields: [allocatedById], references: [id])
+
+  @@index([resourceId, status])
+  @@index([patientId])
+  @@map("allocations")
+}
+
+// ── Audit Logs ──────────────────────────────────────────────────
+
+model AuditLog {
+  id            String   @id @default(uuid())
+  userId        String?  @map("user_id")
+  action        String
+  entity        String
+  entityId      String?  @map("entity_id")
+  previousValue Json?    @map("previous_value")
+  newValue      Json?    @map("new_value")
+  ipAddress     String?  @map("ip_address")
+  userAgent     String?  @map("user_agent")
+  metadata      Json?
+  createdAt     DateTime @default(now()) @map("created_at")
+
+  // Relations
+  user          User?    @relation(fields: [userId], references: [id])
+
+  @@index([entity, entityId])
+  @@index([userId])
+  @@index([createdAt])
+  @@map("audit_logs")
+}
+
+// ── Alerts ──────────────────────────────────────────────────────
+
+model Alert {
+  id            String        @id @default(uuid())
+  patientId     String?       @map("patient_id")
+  severity      AlertSeverity
+  status        AlertStatus   @default(ACTIVE)
+  title         String
+  message       String
+  source        String?
+  acknowledgedBy String?      @map("acknowledged_by")
+  acknowledgedAt DateTime?    @map("acknowledged_at")
+  resolvedAt    DateTime?     @map("resolved_at")
+  metadata      Json?
+  createdAt     DateTime      @default(now()) @map("created_at")
+
+  // Relations
+  patient       Patient?      @relation(fields: [patientId], references: [id])
+
+  @@index([severity, status])
+  @@index([patientId])
+  @@map("alerts")
+}
+
+// ── Notifications ───────────────────────────────────────────────
+
+model Notification {
+  id            String           @id @default(uuid())
+  userId        String           @map("user_id")
+  type          NotificationType
+  title         String
+  message       String
+  isRead        Boolean          @default(false) @map("is_read")
+  metadata      Json?
+  createdAt     DateTime         @default(now()) @map("created_at")
+
+  // Relations
+  user          User             @relation(fields: [userId], references: [id])
+
+  @@index([userId, isRead])
+  @@map("notifications")
+}

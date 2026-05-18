@@ -1,0 +1,111 @@
+version: "3.9"
+
+services:
+  # ── PostgreSQL ─────────────────────────────────────
+  postgres:
+    image: postgres:16-alpine
+    container_name: pulsegrid-postgres
+    restart: unless-stopped
+    environment:
+      POSTGRES_USER: pulsegrid
+      POSTGRES_PASSWORD: pulsegrid_secret
+      POSTGRES_DB: pulsegrid_db
+    ports:
+      - "5433:5432"
+    volumes:
+      - pgdata:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U pulsegrid -d pulsegrid_db"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+
+  # ── Redis ──────────────────────────────────────────
+  redis:
+    image: redis:7-alpine
+    container_name: pulsegrid-redis
+    restart: unless-stopped
+    ports:
+      - "6379:6379"
+    volumes:
+      - redisdata:/data
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+
+  # ── PgAdmin ────────────────────────────────────────
+  pgadmin:
+    image: dpage/pgadmin4:latest
+    container_name: pulsegrid-pgadmin
+    restart: unless-stopped
+    environment:
+      PGADMIN_DEFAULT_EMAIL: admin@pulsegrid.ai
+      PGADMIN_DEFAULT_PASSWORD: admin123
+    ports:
+      - "5050:80"
+    depends_on:
+      postgres:
+        condition: service_healthy
+
+  # ── RedisInsight ───────────────────────────────────
+  redisinsight:
+    image: redis/redisinsight:latest
+    container_name: pulsegrid-redisinsight
+    restart: unless-stopped
+    ports:
+      - "5540:5540"
+    depends_on:
+      redis:
+        condition: service_healthy
+
+  # ── AI Inference Service (FastAPI + XGBoost) ───────
+  ai-service:
+    build:
+      context: ./docker/ai-service
+      dockerfile: Dockerfile
+    container_name: pulsegrid-ai-service
+    restart: unless-stopped
+    ports:
+      - "8000:8000"
+    environment:
+      - MODEL_PATH=/app/model/mortality_model.json
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:8000/health"]
+      interval: 15s
+      timeout: 5s
+      retries: 3
+
+  # ── Backend API Server ─────────────────────────────
+  api-server:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    container_name: pulsegrid-api
+    restart: unless-stopped
+    ports:
+      - "4000:4000"
+    environment:
+      NODE_ENV: production
+      PORT: 4000
+      DATABASE_URL: postgresql://pulsegrid:pulsegrid_secret@postgres:5432/pulsegrid_db?schema=public
+      REDIS_URL: redis://redis:6379
+      JWT_SECRET: pulsegrid-jwt-secret-change-in-production-2026
+      JWT_REFRESH_SECRET: pulsegrid-refresh-secret-change-in-production-2026
+      JWT_EXPIRES_IN: 15m
+      JWT_REFRESH_EXPIRES_IN: 7d
+      AI_SERVICE_URL: http://ai-service:8000
+      CORS_ORIGIN: http://localhost:3000
+      LOG_LEVEL: info
+    depends_on:
+      postgres:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+      ai-service:
+        condition: service_healthy
+
+volumes:
+  pgdata:
+  redisdata:
