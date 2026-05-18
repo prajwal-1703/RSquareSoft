@@ -5,11 +5,12 @@
 const router = require('express').Router();
 const authController = require('./auth.controller');
 const authenticate = require('../../middleware/authenticate');
+const { authorize } = require('../../middleware/authorize');
 const { validate } = require('../../middleware/validate');
 const { registerSchema, loginSchema, refreshSchema } = require('./auth.validators');
 
 // POST /api/auth/register
-router.post('/register', validate(registerSchema), authController.register);
+router.post('/register', authenticate, authorize('admin'), validate(registerSchema), authController.register);
 
 // POST /api/auth/login
 router.post('/login', validate(loginSchema), authController.login);

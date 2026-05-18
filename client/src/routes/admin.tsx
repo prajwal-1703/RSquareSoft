@@ -5,7 +5,7 @@ import { AlertTriangle, Bed, Droplets, Loader2, RefreshCw, Siren, Wind } from "l
 import { Area, AreaChart, Bar, BarChart, CartesianGrid, Cell, Legend, Pie, PieChart, ResponsiveContainer, Tooltip, XAxis, YAxis } from "recharts";
 import { AppShell, Card, SeverityChip } from "@/components/AppShell";
 import { Stat } from "@/components/Bits";
-import { icuApi, auditApi, ehrApi } from "@/lib/api";
+import { icuApi, auditApi, ehrApi, authApi } from "@/lib/api";
 import { useEmergencyAlerts, useOccupancyUpdates } from "@/lib/hooks";
 import { useCallback, useState } from "react";
 import { auditEvents, beds, inflowSeries, riskDistribution, stats, vitalsSeries } from "@/lib/mock";
@@ -58,6 +58,20 @@ function Admin() {
 
   // ── Real-time emergency alerts ────────────────────────────────
   const { alerts: wsAlerts } = useEmergencyAlerts();
+
+  // ── User Registration State ──────────────────────────────────
+  const [newUser, setNewUser] = useState({ firstName: "", lastName: "", email: "", role: "doctor", department: "", password: "PulseGrid@123" });
+  
+  const registerMutation = useMutation({
+    mutationFn: () => authApi.register(newUser),
+    onSuccess: () => {
+      alert(`User ${newUser.firstName} ${newUser.lastName} registered successfully!`);
+      setNewUser({ firstName: "", lastName: "", email: "", role: "doctor", department: "", password: "PulseGrid@123" });
+    },
+    onError: (err: any) => {
+      alert(`Failed to register user: ${err.response?.data?.message || err.message}`);
+    }
+  });
 
   // ── Derived stats (use real data if available, fallback to mock) ─
   const occ = occupancyQuery.data as any;
@@ -303,6 +317,48 @@ function Admin() {
           {!patientsQuery.isLoading && apiPatients.length === 0 && (
             <p className="py-4 text-center text-xs text-muted-foreground font-mono">No patient data — run the seed script or start the backend</p>
           )}
+        </Card>
+
+        {/* ── IAM: Identity & Access Management ────────────────────── */}
+        <Card title="Identity & Access Management" className="col-span-12" glow="cyan">
+          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-6 gap-3 p-4 rounded-xl border border-border bg-background/40 items-end">
+            <label className="block">
+              <span className="text-[10px] font-mono text-muted-foreground uppercase mb-1 block">First Name</span>
+              <input value={newUser.firstName} onChange={e => setNewUser({ ...newUser, firstName: e.target.value })} placeholder="Sarah" className="w-full rounded-md border border-border bg-background/60 px-3 py-2 text-sm outline-none focus:border-cyan/50" />
+            </label>
+            <label className="block">
+              <span className="text-[10px] font-mono text-muted-foreground uppercase mb-1 block">Last Name</span>
+              <input value={newUser.lastName} onChange={e => setNewUser({ ...newUser, lastName: e.target.value })} placeholder="Smith" className="w-full rounded-md border border-border bg-background/60 px-3 py-2 text-sm outline-none focus:border-cyan/50" />
+            </label>
+            <label className="block">
+              <span className="text-[10px] font-mono text-muted-foreground uppercase mb-1 block">Email</span>
+              <input value={newUser.email} onChange={e => setNewUser({ ...newUser, email: e.target.value })} placeholder="dr.smith@pulsegrid.ai" type="email" className="w-full rounded-md border border-border bg-background/60 px-3 py-2 text-sm outline-none focus:border-cyan/50" />
+            </label>
+            <label className="block">
+              <span className="text-[10px] font-mono text-muted-foreground uppercase mb-1 block">Role</span>
+              <select value={newUser.role} onChange={e => setNewUser({ ...newUser, role: e.target.value })} className="w-full rounded-md border border-border bg-background/60 px-3 py-2 text-sm outline-none focus:border-cyan/50 text-foreground cursor-pointer">
+                <option value="doctor" className="bg-background">Doctor</option>
+                <option value="nurse" className="bg-background">Nurse</option>
+                <option value="lab_technician" className="bg-background">Lab Technician</option>
+                <option value="admin" className="bg-background">Admin</option>
+              </select>
+            </label>
+            <label className="block">
+              <span className="text-[10px] font-mono text-muted-foreground uppercase mb-1 block">Department</span>
+              <input value={newUser.department} onChange={e => setNewUser({ ...newUser, department: e.target.value })} placeholder="e.g. ICU or Pathology" className="w-full rounded-md border border-border bg-background/60 px-3 py-2 text-sm outline-none focus:border-cyan/50" />
+            </label>
+            <button 
+              onClick={() => registerMutation.mutate()}
+              disabled={!newUser.email || !newUser.firstName || registerMutation.isPending}
+              className="rounded-md bg-cyan/20 border border-cyan/40 text-cyan px-4 py-2 text-xs font-mono uppercase tracking-widest hover:bg-cyan/30 disabled:opacity-50 transition-all h-[38px]"
+            >
+              {registerMutation.isPending ? "..." : "Create User"}
+            </button>
+          </div>
+          <p className="mt-3 text-[10px] font-mono text-muted-foreground flex items-center justify-between">
+            <span>⚠️ All new clinical accounts are provisioned with the default enterprise password.</span>
+            <span>Default: <span className="text-foreground">PulseGrid@123</span></span>
+          </p>
         </Card>
       </div>
     </AppShell>
