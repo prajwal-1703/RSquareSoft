@@ -61,9 +61,11 @@ function ICU() {
     .slice(0, 3)
     .map((p: any) => ({
       patientId: p.patientId,
-      from: p.hasIcuBed ? "Standard Ward" : "Emergency Room",
-      to: p.hasIcuBed ? "Ventilator Support" : "ICU Bed",
-      reason: `Risk score ${p.riskScore}% — allocate immediately`,
+      name: p.name,
+      mrn: p.mrn,
+      from: p.hasIcuBed ? "ICU Bed" : "ER",
+      to: p.hasIcuBed ? "Ventilator" : "ICU Bed",
+      reason: `Patient ${p.mrn} has critical mortality risk (${p.riskScore}%) — allocate immediately`,
       conf: Math.min(99, p.riskScore + 12),
       resourceType: p.hasIcuBed ? "VENTILATOR" : "ICU_BED"
     }));
@@ -186,13 +188,14 @@ function ICU() {
               <div key={i} className="rounded-xl border border-border bg-background/40 p-3">
                 <div className="flex items-center justify-between">
                   <span className="flex items-center gap-2 text-sm">
-                    <BedDouble className="size-3.5 text-cyan" /> {r.from}
-                    <ArrowRight className="size-3.5 text-muted-foreground" />
-                    <span className="text-cyan">{r.to}</span>
+                    <BedDouble className="size-3.5 text-cyan" /> 
+                    <span className="font-semibold">{r.name}</span>
+                    <ArrowRight className="size-3.5 text-muted-foreground mx-1" />
+                    <span className="text-cyan font-semibold">{r.to}</span>
                   </span>
-                  <span className="font-mono text-[10px] text-emerald">{r.conf}%</span>
+                  <span className="font-mono text-[10px] text-emerald glow-cyan">{r.conf}% Match</span>
                 </div>
-                <p className="mt-1 text-xs text-muted-foreground flex items-start gap-2">
+                <p className="mt-1 text-[11px] text-muted-foreground flex items-start gap-2">
                   <BrainCircuit className="size-3 mt-0.5 text-emerald shrink-0" /> {r.reason}
                 </p>
                 <div className="mt-2 flex gap-2">
