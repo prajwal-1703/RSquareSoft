@@ -53,6 +53,7 @@ function EHR() {
     mutationFn: (body: object) => ehrApi.updateEHR(selectedPatientId!, body),
     onSuccess: () => {
       setSaveStatus("saved");
+      setFields(prev => ({ ...prev, notes: "", diagnosisName: "", medicationName: "", medicationDosage: "", labReport: "" }));
       qc.invalidateQueries({ queryKey: ["patient-ehr", selectedPatientId] });
       qc.invalidateQueries({ queryKey: ["patient-versions", selectedPatientId] });
       setTimeout(() => setSaveStatus("idle"), 3000);
@@ -142,6 +143,14 @@ function EHR() {
       ...(fields.notes ? { notes: fields.notes } : {})
     });
   };
+
+  const v = patient?.vitals?.[0] || {};
+  const hasChanges = !!fields.notes || !!fields.diagnosisName || !!fields.medicationName || !!fields.labReport || 
+    fields.heartRate !== (v.heartRate?.toString() || "") ||
+    fields.spo2 !== (v.spo2?.toString() || "") ||
+    fields.gcsScore !== (v.gcsScore?.toString() || "") ||
+    fields.isVentilated !== (v.isVentilated || false) ||
+    fields.isOnVasopressors !== (v.isOnVasopressors || false);
 
   return (
     <AppShell title="Concurrent-Safe EHR" subtitle={
@@ -435,7 +444,7 @@ function EHR() {
                       </div>
                       <button
                         onClick={handleSave}
-                        disabled={updateMutation.isPending || (!fields.notes && !fields.diagnosisName && !fields.heartRate && !fields.medicationName && !fields.isVentilated && !fields.isOnVasopressors && !fields.labReport)}
+                        disabled={updateMutation.isPending || !hasChanges}
                         className="rounded-lg bg-primary px-4 py-2 text-xs font-semibold text-primary-foreground glow-cyan inline-flex items-center gap-2 disabled:opacity-60 transition-all hover:brightness-110"
                       >
                         {updateMutation.isPending ? <Loader2 className="size-3.5 animate-spin" /> : <Save className="size-3.5" />}
