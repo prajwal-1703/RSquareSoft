@@ -48,6 +48,14 @@ function ICU() {
     },
   });
 
+  const releaseMutation = useMutation({
+    mutationFn: (allocationId: string) => icuApi.release(allocationId),
+    onSuccess: () => {
+      qc.invalidateQueries({ queryKey: ["icu-occupancy"] });
+      qc.invalidateQueries({ queryKey: ["emergency-queue"] });
+    },
+  });
+
   const aiRecommendations = eqPatients
     .filter((p: any) => !(p.hasIcuBed && p.hasVentilator))
     .slice(0, 3)
@@ -65,21 +73,24 @@ function ICU() {
       <div className="grid grid-cols-12 gap-4">
         <Card title="ICU Bed Map · live" className="col-span-12 lg:col-span-8" glow="cyan">
           <div className="grid gap-1.5" style={{ gridTemplateColumns: "repeat(16, minmax(0,1fr))" }}>
-            {beds.map((b) => {
-              const color = !b.occupied ? "bg-white/5 border-white/10 hover:bg-cyan/20 cursor-pointer"
-                : b.severity === "critical" ? "bg-critical/60 border-critical glow-critical"
-                : b.severity === "warning" ? "bg-warning/50 border-warning/40"
-                : b.severity === "recovery" ? "bg-emerald/40 border-emerald/30"
+            {(occ?.bedList ?? []).map((b: any, idx: number) => {
+              const p = b.allocations?.[0]?.patient;
+              const severity = p?.riskLevel || "stable";
+              const color = b.status === "AVAILABLE" ? "bg-white/5 border-white/10 hover:bg-cyan/20 cursor-pointer"
+                : severity === "critical" ? "bg-critical/60 border-critical glow-critical"
+                : severity === "warning" ? "bg-warning/50 border-warning/40"
+                : severity === "recovery" ? "bg-emerald/40 border-emerald/30"
                 : "bg-teal/40 border-teal/30";
+              const bedNum = b.identifier?.split('-').pop() || b.id;
               return (
                 <motion.div
                   key={b.id}
                   whileHover={{ scale: 1.15 }}
-                  initial={{ opacity: 0 }} animate={{ opacity: 1 }} transition={{ delay: b.id * 0.005 }}
+                  initial={{ opacity: 0 }} animate={{ opacity: 1 }} transition={{ delay: idx * 0.01 }}
                   className={`aspect-square rounded-md border ${color} relative`}
-                  title={`Bed ${b.id}`}
+                  title={`Bed ${bedNum} ${p ? `(${p.mrn})` : ''}`}
                 >
-                  <span className="absolute inset-0 grid place-items-center font-mono text-[8px] text-foreground/70">{b.id}</span>
+                  <span className="absolute inset-0 grid place-items-center font-mono text-[8px] text-foreground/70">{bedNum}</span>
                 </motion.div>
               );
             })}
@@ -147,6 +158,21 @@ function ICU() {
                     >
                       {allocateMutation.isPending ? <Loader2 className="size-3 animate-spin" /> : (p.hasIcuBed ? "Add Vent" : "Allocate Bed")} <ArrowRight className="size-3" />
                     </button>
+                  )}
+                  {p.allocations && p.allocations.length > 0 && (
+                    <div className="flex gap-1 ml-2">
+                      {p.allocations.map((alloc: any) => (
+                        <button 
+                          key={alloc.id}
+                          onClick={() => releaseMutation.mutate(alloc.id)}
+                          disabled={releaseMutation.isPending}
+                          title={`Revoke ${alloc.resource?.resourceType || 'Resource'}`}
+                          className="rounded-md bg-red-500/10 border border-red-500/20 text-red-400 px-1.5 py-1 text-[9px] font-mono uppercase tracking-widest hover:bg-red-500/25 disabled:opacity-50"
+                        >
+                          {releaseMutation.isPending ? "..." : `Revoke ${alloc.resource?.resourceType === 'ICU_BED' ? 'Bed' : 'Vent'}`}
+                        </button>
+                      ))}
+                    </div>
                   )}
                 </motion.div>
               );

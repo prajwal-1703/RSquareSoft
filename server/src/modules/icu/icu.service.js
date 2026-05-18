@@ -197,7 +197,7 @@ class IcuService {
   // ── Get ICU Occupancy ────────────────────────────────────────
 
   async getOccupancy() {
-    const [beds, ventilators] = await Promise.all([
+    const [beds, ventilators, allBeds] = await Promise.all([
       prisma.icuResource.groupBy({
         by: ['status'],
         where: { resourceType: 'ICU_BED' },
@@ -208,6 +208,16 @@ class IcuService {
         where: { resourceType: 'VENTILATOR' },
         _count: { id: true },
       }),
+      prisma.icuResource.findMany({
+        where: { resourceType: 'ICU_BED' },
+        orderBy: { identifier: 'asc' },
+        include: {
+          allocations: {
+            where: { status: 'ACTIVE' },
+            include: { patient: { select: { mrn: true, currentRiskScore: true, riskLevel: true } } }
+          }
+        }
+      })
     ]);
 
     const toMap = (groups) => {
@@ -220,6 +230,7 @@ class IcuService {
     return {
       icuBeds: toMap(beds),
       ventilators: toMap(ventilators),
+      bedList: allBeds,
       timestamp: new Date(),
     };
   }
@@ -252,6 +263,7 @@ class IcuService {
       hasIcuBed: p.allocations.some((a) => a.resource.resourceType === 'ICU_BED'),
       hasVentilator: p.allocations.some((a) => a.resource.resourceType === 'VENTILATOR'),
       latestVitals: p.vitals[0] || null,
+      allocations: p.allocations,
     }));
   }
 
