@@ -7,7 +7,6 @@ import { AppShell, Card, SeverityChip } from "@/components/AppShell";
 import { Stat } from "@/components/Bits";
 import { icuApi, auditApi, ehrApi, authApi } from "@/lib/api";
 import { useEmergencyAlerts, useOccupancyUpdates } from "@/lib/hooks";
-import { useCallback, useState } from "react";
 import { useCallback, useState, useMemo } from "react";
 
 export const Route = createFileRoute("/admin")({
