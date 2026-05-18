@@ -29,7 +29,7 @@ router.get('/patients/:patientId', ehrController.getPatient);
 // PATCH /api/ehr/patients/:patientId  (versioned EHR update)
 router.patch(
   '/patients/:patientId',
-  authorize(...Roles.CLINICAL),
+  authorize(...Roles.EHR_EDITORS),
   validate(updateEhrSchema),
   ehrController.updateEHR
 );

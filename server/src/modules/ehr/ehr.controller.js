@@ -41,7 +41,23 @@ class EhrController {
 
   async updateEHR(req, res, next) {
     try {
-      const result = await ehrService.updateEHR(req.params.patientId, req.body, req.user);
+      const payload = { ...req.body };
+      
+      // Role-based payload stripping (RBAC)
+      if (req.user.role === 'nurse') {
+        // Nurses can only update vitals
+        delete payload.diagnosis;
+        delete payload.medication;
+        delete payload.labReport;
+      } else if (req.user.role === 'lab_technician') {
+        // Lab techs can only update lab reports
+        delete payload.vitals;
+        delete payload.diagnosis;
+        delete payload.medication;
+        delete payload.allergy;
+      }
+      
+      const result = await ehrService.updateEHR(req.params.patientId, payload, req.user);
       return ApiResponse.success(res, result, 'EHR updated successfully');
     } catch (err) {
       next(err);
