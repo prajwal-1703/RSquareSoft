@@ -19,6 +19,7 @@ function EHR() {
   const [conflict, setConflict] = useState(false);
   const [selectedPatientId, setSelectedPatientId] = useState<string | null>(null);
   const [saveStatus, setSaveStatus] = useState<"idle" | "saving" | "saved" | "error">("idle");
+  const [activeTab, setActiveTab] = useState<"overview" | "editor">("overview");
 
   // ── Patient list ──────────────────────────────────────────────
   const patientsQuery = useQuery({
@@ -159,7 +160,7 @@ function EHR() {
                 return (
                   <button
                     key={p.id}
-                    onClick={() => { setSelectedPatientId(p.id); setActiveVersion(null); setConflict(false); setFields({ notes: "", heartRate: "", spo2: "", gcsScore: "", isVentilated: false, isOnVasopressors: false, diagnosisName: "", diagnosisSeverity: "moderate", medicationName: "", medicationDosage: "" }); }}
+                    onClick={() => { setSelectedPatientId(p.id); setActiveVersion(null); setConflict(false); setActiveTab("overview"); setFields({ notes: "", heartRate: "", spo2: "", gcsScore: "", isVentilated: false, isOnVasopressors: false, diagnosisName: "", diagnosisSeverity: "moderate", medicationName: "", medicationDosage: "", labReport: "" }); }}
                     className={`w-full text-left px-3 py-2.5 rounded-xl border transition-all text-sm ${sel ? "border-primary/50 bg-primary/5" : "border-border bg-background/40 hover:bg-white/5"}`}
                   >
                     <div className="flex items-center justify-between">
@@ -239,11 +240,20 @@ function EHR() {
           )}
         </Card>
 
-        {/* ── EHR Editor ───────────────────────────────────────── */}
+        {/* ── EHR View / Editor ───────────────────────────────────────── */}
         <div className="col-span-12 lg:col-span-6 space-y-4">
+          {patient && (
+            <div className="flex bg-background/40 p-1 rounded-lg border border-border w-max">
+              <button onClick={() => setActiveTab("overview")} className={`px-4 py-1.5 text-xs font-mono uppercase tracking-widest rounded-md transition-colors ${activeTab === "overview" ? "bg-primary/20 text-primary" : "text-muted-foreground hover:bg-white/5"}`}>Overview</button>
+              {['doctor', 'nurse', 'lab_technician'].includes(user?.role) && (
+                <button onClick={() => setActiveTab("editor")} className={`px-4 py-1.5 text-xs font-mono uppercase tracking-widest rounded-md transition-colors ${activeTab === "editor" ? "bg-primary/20 text-primary" : "text-muted-foreground hover:bg-white/5"}`}>Editor</button>
+              )}
+            </div>
+          )}
+
           <Card
-            title={['admin'].includes(user?.role) ? `Viewing · v${currentVersion}` : `Editing · v${currentVersion}`}
-            glow="cyan"
+            title={activeTab === "overview" ? "Medical Record Overview" : `Editing · v${currentVersion}`}
+            glow={activeTab === "overview" ? "emerald" : "cyan"}
             action={
               <div className="flex items-center gap-2">
                 <span className="font-mono text-[10px] text-emerald inline-flex items-center gap-1">
@@ -288,9 +298,44 @@ function EHR() {
                   </div>
                 )}
 
-                <div className="mt-4 grid grid-cols-1 md:grid-cols-2 gap-4">
-                  
-                  {/* Vitals & Support */}
+                {activeTab === "overview" ? (
+                  <div className="mt-4 grid grid-cols-1 md:grid-cols-2 gap-4">
+                    <div className="rounded-xl border border-border bg-background/40 p-4 space-y-3">
+                      <p className="text-[10px] font-mono uppercase tracking-widest text-muted-foreground border-b border-border pb-2">Current Vitals</p>
+                      {patient.vitals?.[0] ? (
+                        <div className="space-y-2 text-sm">
+                          <div className="flex justify-between"><span className="text-muted-foreground">HR:</span> <span>{patient.vitals[0].heartRate} bpm</span></div>
+                          <div className="flex justify-between"><span className="text-muted-foreground">SpO2:</span> <span>{patient.vitals[0].spo2}%</span></div>
+                          <div className="flex justify-between"><span className="text-muted-foreground">GCS:</span> <span>{patient.vitals[0].gcsScore}</span></div>
+                          <div className="flex justify-between"><span className="text-muted-foreground">Temp:</span> <span>{patient.vitals[0].temperature}°C</span></div>
+                          <div className="flex justify-between"><span className="text-muted-foreground">Support:</span> <span>{patient.vitals[0].isVentilated ? "Ventilated" : "None"}</span></div>
+                        </div>
+                      ) : <p className="text-xs text-muted-foreground">No vitals recorded.</p>}
+                    </div>
+
+                    <div className="rounded-xl border border-border bg-background/40 p-4 space-y-3">
+                      <p className="text-[10px] font-mono uppercase tracking-widest text-muted-foreground border-b border-border pb-2">Active Medications & Labs</p>
+                      {patient.medications?.length > 0 ? (
+                        <div className="space-y-1 mb-3">
+                          {patient.medications.map((m: any) => (
+                            <div key={m.id} className="text-sm"><span className="text-emerald font-mono">Rx</span> {m.name} <span className="text-muted-foreground text-xs">({m.dosage})</span></div>
+                          ))}
+                        </div>
+                      ) : <p className="text-xs text-muted-foreground">No active medications.</p>}
+                      {patient.labReports?.length > 0 ? (
+                        <div className="space-y-1 border-t border-border pt-2">
+                          {patient.labReports.slice(0, 3).map((l: any) => (
+                            <div key={l.id} className="text-xs text-muted-foreground"><span className="text-cyan font-mono">Lab</span> {l.summary}</div>
+                          ))}
+                        </div>
+                      ) : <p className="text-xs text-muted-foreground">No lab reports.</p>}
+                    </div>
+                  </div>
+                ) : (
+                  <>
+                  <div className="mt-4 grid grid-cols-1 md:grid-cols-2 gap-4">
+                    
+                    {/* Vitals & Support */}
                   {['doctor', 'nurse'].includes(user?.role) && (
                     <div className="rounded-xl border border-border bg-background/40 p-4 space-y-3">
                       <p className="text-[10px] font-mono uppercase tracking-widest text-muted-foreground border-b border-border pb-2">Vitals & Support</p>
@@ -383,6 +428,8 @@ function EHR() {
                       </button>
                     </div>
                   </div>
+                )}
+                </>
                 )}
               </>
             ) : (
