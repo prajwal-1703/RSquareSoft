@@ -7,6 +7,7 @@ const prisma = require('../../config/database');
 const AppError = require('../../utils/AppError');
 const logger = require('../../utils/logger');
 const auditService = require('../audit/audit.service');
+const aiService = require('../ai/ai.service');
 const { getRedis } = require('../../config/redis');
 
 class EhrService {
@@ -202,10 +203,30 @@ class EhrService {
         changes.push('allergy');
       }
 
-      // 7. Bump patient version
+      // 6.5 If vitals changed, recalculate AI risk score
+      let newRiskScore = patient.currentRiskScore;
+      let newRiskLevel = patient.riskLevel;
+      
+      if (vitals) {
+        try {
+          const age = patient.dateOfBirth ? Math.floor((Date.now() - new Date(patient.dateOfBirth).getTime()) / (365.25 * 24 * 60 * 60 * 1000)) : 50;
+          const prediction = await aiService.predictRisk({ ...vitals, age });
+          newRiskScore = prediction.risk_score;
+          newRiskLevel = prediction.risk_level;
+          logger.info(`[EHR] Patient ${patientId} risk updated to ${newRiskScore} (${newRiskLevel})`);
+        } catch (err) {
+          logger.error(`[EHR] Failed to recalculate risk score: ${err.message}`);
+        }
+      }
+
+      // 7. Bump patient version and update risk score
       const updatedPatient = await tx.patient.update({
         where: { id: patientId },
-        data: { version: newVersion, updatedAt: new Date() },
+        data: { 
+          version: newVersion, 
+          updatedAt: new Date(),
+          ...(vitals ? { currentRiskScore: newRiskScore, riskLevel: newRiskLevel } : {})
+        },
       });
 
       // 8. Create immutable version snapshot
