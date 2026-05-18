@@ -86,10 +86,10 @@ function EHR() {
     notes: "",
     heartRate: "", systolicBp: "", diastolicBp: "", respiratoryRate: "", temperature: "", spo2: "", gcsScore: "", bloodGlucose: "", creatinine: "", lactate: "", wbcCount: "", plateletCount: "", isVentilated: false, isOnVasopressors: false,
     diagnosisName: "", diagnosisSeverity: "moderate", diagnosisIcdCode: "",
-    medicationName: "", medicationDosage: "", medicationRoute: "", medicationFrequency: "",
     labTestName: "", labTestCategory: "", labResult: "", labUnit: "", labReferenceRange: "", labIsAbnormal: false,
     allergyName: "", allergySeverity: "moderate", allergyReaction: ""
   });
+  const [medicationsList, setMedicationsList] = useState([{ id: '1', name: "", dosage: "", route: "", frequency: "" }]);
 
   // Pre-fill fields to preserve existing data on partial updates
   useEffect(() => {
@@ -112,6 +112,7 @@ function EHR() {
         isVentilated: v.isVentilated || false,
         isOnVasopressors: v.isOnVasopressors || false,
       }));
+      setMedicationsList([{ id: Math.random().toString(), name: "", dosage: "", route: "", frequency: "" }]);
     }
   }, [patient?.id, activeTab]);
 
@@ -142,12 +143,13 @@ function EHR() {
       severity: fields.diagnosisSeverity
     } : undefined;
 
-    const medication = fields.medicationName ? {
-      name: fields.medicationName,
-      dosage: fields.medicationDosage || "Standard dose",
-      route: fields.medicationRoute,
-      frequency: fields.medicationFrequency || "PRN"
-    } : undefined;
+    const validMeds = medicationsList.filter(m => m.name.trim() !== "");
+    const medicationsPayload = validMeds.length > 0 ? validMeds.map(m => ({
+      name: m.name,
+      dosage: m.dosage || "Standard dose",
+      route: m.route,
+      frequency: m.frequency || "PRN"
+    })) : undefined;
 
     const labReport = fields.labTestName ? {
       testName: fields.labTestName,
@@ -168,7 +170,7 @@ function EHR() {
       version: patient.version,
       ...(vitals ? { vitals } : {}),
       ...(diagnosis ? { diagnosis } : {}),
-      ...(medication ? { medication } : {}),
+      ...(medicationsPayload ? { medications: medicationsPayload } : {}),
       ...(labReport ? { labReport } : {}),
       ...(allergy ? { allergy } : {}),
       ...(fields.notes ? { notes: fields.notes } : {})
@@ -215,7 +217,7 @@ function EHR() {
                 return (
                   <button
                     key={p.id}
-                    onClick={() => { setSelectedPatientId(p.id); setActiveVersion(null); setConflict(false); setActiveTab("overview"); setFields({ notes: "", heartRate: "", spo2: "", gcsScore: "", isVentilated: false, isOnVasopressors: false, diagnosisName: "", diagnosisSeverity: "moderate", medicationName: "", medicationDosage: "", labReport: "" }); }}
+                    onClick={() => { setSelectedPatientId(p.id); setActiveVersion(null); setConflict(false); setActiveTab("overview"); setFields({ notes: "", heartRate: "", systolicBp: "", diastolicBp: "", respiratoryRate: "", temperature: "", spo2: "", gcsScore: "", bloodGlucose: "", creatinine: "", lactate: "", wbcCount: "", plateletCount: "", isVentilated: false, isOnVasopressors: false, diagnosisName: "", diagnosisSeverity: "moderate", diagnosisIcdCode: "", labTestName: "", labTestCategory: "", labResult: "", labUnit: "", labReferenceRange: "", labIsAbnormal: false, allergyName: "", allergySeverity: "moderate", allergyReaction: "" }); setMedicationsList([{ id: Math.random().toString(), name: "", dosage: "", route: "", frequency: "" }]); }}
                     className={`w-full text-left px-3 py-2.5 rounded-xl border transition-all text-sm ${sel ? "border-primary/50 bg-primary/5" : "border-border bg-background/40 hover:bg-white/5"}`}
                   >
                     <div className="flex items-center justify-between">
@@ -475,23 +477,30 @@ function EHR() {
                         </label>
                       </div>
 
-                      <div className="grid grid-cols-2 lg:grid-cols-4 gap-3 mt-3">
-                        <label className="block col-span-2 lg:col-span-1">
-                          <span className="text-[9px] font-mono text-muted-foreground uppercase">Medication</span>
-                          <input value={fields.medicationName} onChange={e => setFields(f => ({...f, medicationName: e.target.value}))} placeholder="e.g. Norepinephrine" className="mt-1 w-full rounded-md border border-border bg-background/60 px-2 py-1.5 text-xs outline-none focus:border-primary/50" />
-                        </label>
-                        <label className="block">
-                          <span className="text-[9px] font-mono text-muted-foreground uppercase">Dosage</span>
-                          <input value={fields.medicationDosage} onChange={e => setFields(f => ({...f, medicationDosage: e.target.value}))} placeholder="e.g. 5mcg/min" className="mt-1 w-full rounded-md border border-border bg-background/60 px-2 py-1.5 text-xs outline-none focus:border-primary/50" />
-                        </label>
-                        <label className="block">
-                          <span className="text-[9px] font-mono text-muted-foreground uppercase">Route</span>
-                          <input value={fields.medicationRoute} onChange={e => setFields(f => ({...f, medicationRoute: e.target.value}))} placeholder="e.g. IV" className="mt-1 w-full rounded-md border border-border bg-background/60 px-2 py-1.5 text-xs outline-none focus:border-primary/50" />
-                        </label>
-                        <label className="block">
-                          <span className="text-[9px] font-mono text-muted-foreground uppercase">Frequency</span>
-                          <input value={fields.medicationFrequency} onChange={e => setFields(f => ({...f, medicationFrequency: e.target.value}))} placeholder="e.g. Continuous" className="mt-1 w-full rounded-md border border-border bg-background/60 px-2 py-1.5 text-xs outline-none focus:border-primary/50" />
-                        </label>
+                      <div className="space-y-3 mt-3">
+                        {medicationsList.map((med) => (
+                          <div key={med.id} className="relative grid grid-cols-2 lg:grid-cols-4 gap-3 p-3 border border-border/50 rounded-lg bg-background/20">
+                            <label className="block col-span-2 lg:col-span-1">
+                              <span className="text-[9px] font-mono text-muted-foreground uppercase flex items-center justify-between">Medication {medicationsList.length > 1 && <button type="button" onClick={() => setMedicationsList(l => l.filter(m => m.id !== med.id))} className="text-critical hover:text-critical/80 -mr-1">✕</button>}</span>
+                              <input value={med.name} onChange={e => setMedicationsList(l => l.map(m => m.id === med.id ? {...m, name: e.target.value} : m))} placeholder="e.g. Norepinephrine" className="mt-1 w-full rounded-md border border-border bg-background/60 px-2 py-1.5 text-xs outline-none focus:border-primary/50" />
+                            </label>
+                            <label className="block">
+                              <span className="text-[9px] font-mono text-muted-foreground uppercase">Dosage</span>
+                              <input value={med.dosage} onChange={e => setMedicationsList(l => l.map(m => m.id === med.id ? {...m, dosage: e.target.value} : m))} placeholder="e.g. 5mcg/min" className="mt-1 w-full rounded-md border border-border bg-background/60 px-2 py-1.5 text-xs outline-none focus:border-primary/50" />
+                            </label>
+                            <label className="block">
+                              <span className="text-[9px] font-mono text-muted-foreground uppercase">Route</span>
+                              <input value={med.route} onChange={e => setMedicationsList(l => l.map(m => m.id === med.id ? {...m, route: e.target.value} : m))} placeholder="e.g. IV" className="mt-1 w-full rounded-md border border-border bg-background/60 px-2 py-1.5 text-xs outline-none focus:border-primary/50" />
+                            </label>
+                            <label className="block">
+                              <span className="text-[9px] font-mono text-muted-foreground uppercase">Frequency</span>
+                              <input value={med.frequency} onChange={e => setMedicationsList(l => l.map(m => m.id === med.id ? {...m, frequency: e.target.value} : m))} placeholder="e.g. Continuous" className="mt-1 w-full rounded-md border border-border bg-background/60 px-2 py-1.5 text-xs outline-none focus:border-primary/50" />
+                            </label>
+                          </div>
+                        ))}
+                        <button type="button" onClick={() => setMedicationsList(l => [...l, { id: Math.random().toString(), name: "", dosage: "", route: "", frequency: "" }])} className="w-full rounded-md border border-dashed border-border/50 py-2 text-[10px] font-mono uppercase tracking-widest text-muted-foreground hover:bg-white/5 hover:text-foreground transition-colors">
+                          + Add Medication
+                        </button>
                       </div>
                     </div>
                   )}

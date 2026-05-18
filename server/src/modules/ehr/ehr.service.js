@@ -140,7 +140,7 @@ class EhrService {
   // ── Update EHR (Optimistic Concurrency Control) ───────────────
 
   async updateEHR(patientId, data, requestingUser) {
-    const { version, vitals, diagnosis, medication, labReport, allergy } = data;
+    const { version, vitals, diagnosis, medication, medications, labReport, allergy } = data;
 
     return await prisma.$transaction(async (tx) => {
       // 1. Lock patient row and verify version
@@ -179,8 +179,17 @@ class EhrService {
         changes.push('diagnosis');
       }
 
-      // 4. Record medication
-      if (medication) {
+      // 4. Record medication(s)
+      if (medications && Array.isArray(medications) && medications.length > 0) {
+        await tx.medication.createMany({
+          data: medications.map(med => ({
+            patientId,
+            prescribedBy: requestingUser.id,
+            ...med
+          }))
+        });
+        changes.push(`medications (${medications.length})`);
+      } else if (medication) {
         await tx.medication.create({
           data: { patientId, prescribedBy: requestingUser.id, ...medication },
         });
