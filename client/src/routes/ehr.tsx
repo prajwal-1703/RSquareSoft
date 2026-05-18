@@ -356,34 +356,56 @@ function EHR() {
                 {activeTab === "overview" ? (
                   <div className="mt-4 grid grid-cols-1 md:grid-cols-2 gap-4">
                     <div className="rounded-xl border border-border bg-background/40 p-4 space-y-3">
-                      <p className="text-[10px] font-mono uppercase tracking-widest text-muted-foreground border-b border-border pb-2">Current Vitals</p>
+                      <p className="text-[10px] font-mono uppercase tracking-widest text-muted-foreground border-b border-border pb-2">Current Vitals & Biomarkers</p>
                       {patient.vitals?.[0] ? (
-                        <div className="space-y-2 text-sm">
+                        <div className="grid grid-cols-2 gap-x-4 gap-y-2 text-sm">
                           <div className="flex justify-between"><span className="text-muted-foreground">HR:</span> <span>{patient.vitals[0].heartRate} bpm</span></div>
+                          <div className="flex justify-between"><span className="text-muted-foreground">BP:</span> <span>{patient.vitals[0].systolicBp || "—"}/{patient.vitals[0].diastolicBp || "—"}</span></div>
                           <div className="flex justify-between"><span className="text-muted-foreground">SpO2:</span> <span>{patient.vitals[0].spo2}%</span></div>
-                          <div className="flex justify-between"><span className="text-muted-foreground">GCS:</span> <span>{patient.vitals[0].gcsScore}</span></div>
+                          <div className="flex justify-between"><span className="text-muted-foreground">Resp:</span> <span>{patient.vitals[0].respiratoryRate || "—"} /min</span></div>
                           <div className="flex justify-between"><span className="text-muted-foreground">Temp:</span> <span>{patient.vitals[0].temperature}°C</span></div>
-                          <div className="flex justify-between"><span className="text-muted-foreground">Support:</span> <span>{patient.vitals[0].isVentilated ? "Ventilated" : "None"}</span></div>
+                          <div className="flex justify-between"><span className="text-muted-foreground">GCS:</span> <span>{patient.vitals[0].gcsScore}</span></div>
+                          <div className="flex justify-between"><span className="text-muted-foreground">Glucose:</span> <span>{patient.vitals[0].bloodGlucose || "—"}</span></div>
+                          <div className="flex justify-between"><span className="text-muted-foreground">Lactate:</span> <span>{patient.vitals[0].lactate || "—"}</span></div>
+                          <div className="flex justify-between"><span className="text-muted-foreground">Creatinine:</span> <span>{patient.vitals[0].creatinine || "—"}</span></div>
+                          <div className="flex justify-between"><span className="text-muted-foreground">WBC:</span> <span>{patient.vitals[0].wbcCount || "—"}</span></div>
+                          <div className="flex justify-between col-span-2 mt-1 pt-2 border-t border-border/50"><span className="text-muted-foreground">Support:</span> <span className="font-mono text-[10px] uppercase text-warning">{patient.vitals[0].isVentilated ? "Ventilator " : ""}{patient.vitals[0].isOnVasopressors ? "Vasopressors" : ""}{!patient.vitals[0].isVentilated && !patient.vitals[0].isOnVasopressors ? <span className="text-muted-foreground">None</span> : ""}</span></div>
                         </div>
                       ) : <p className="text-xs text-muted-foreground">No vitals recorded.</p>}
                     </div>
 
-                    <div className="rounded-xl border border-border bg-background/40 p-4 space-y-3">
-                      <p className="text-[10px] font-mono uppercase tracking-widest text-muted-foreground border-b border-border pb-2">Active Medications & Labs</p>
-                      {patient.medications?.length > 0 ? (
-                        <div className="space-y-1 mb-3">
-                          {patient.medications.map((m: any) => (
-                            <div key={m.id} className="text-sm"><span className="text-emerald font-mono">Rx</span> {m.name} <span className="text-muted-foreground text-xs">({m.dosage})</span></div>
-                          ))}
-                        </div>
-                      ) : <p className="text-xs text-muted-foreground">No active medications.</p>}
-                      {patient.labReports?.length > 0 ? (
-                        <div className="space-y-1 border-t border-border pt-2">
-                          {patient.labReports.slice(0, 3).map((l: any) => (
-                            <div key={l.id} className="text-xs text-muted-foreground"><span className="text-cyan font-mono">Lab</span> {l.result}</div>
-                          ))}
-                        </div>
-                      ) : <p className="text-xs text-muted-foreground">No lab reports.</p>}
+                    <div className="space-y-4">
+                      <div className="rounded-xl border border-border bg-background/40 p-4 space-y-3">
+                        <p className="text-[10px] font-mono uppercase tracking-widest text-muted-foreground border-b border-border pb-2">Active Medications & Allergies</p>
+                        {patient.medications?.length > 0 ? (
+                          <div className="space-y-2 mb-3">
+                            {patient.medications.map((m: any) => (
+                              <div key={m.id} className="text-sm leading-tight"><span className="text-emerald font-mono">Rx</span> {m.name} <br/><span className="text-muted-foreground text-xs pl-5">{m.dosage} {m.route ? `· ${m.route}` : ""} {m.frequency ? `· ${m.frequency}` : ""}</span></div>
+                            ))}
+                          </div>
+                        ) : <p className="text-xs text-muted-foreground mb-3">No active medications.</p>}
+                        {patient.allergies?.length > 0 && (
+                          <div className="space-y-1 border-t border-border pt-3">
+                            {patient.allergies.map((a: any) => (
+                              <div key={a.id} className="text-sm text-critical flex items-center gap-2"><span className="font-mono">⚠</span> {a.allergen} <span className="text-muted-foreground text-xs capitalize ml-auto">{a.severity}</span></div>
+                            ))}
+                          </div>
+                        )}
+                      </div>
+
+                      <div className="rounded-xl border border-border bg-background/40 p-4 space-y-3">
+                        <p className="text-[10px] font-mono uppercase tracking-widest text-muted-foreground border-b border-border pb-2">Lab Reports</p>
+                        {patient.labReports?.length > 0 ? (
+                          <div className="space-y-2">
+                            {patient.labReports.slice(0, 4).map((l: any) => (
+                              <div key={l.id} className="flex justify-between items-center text-sm">
+                                <span className="truncate"><span className="text-cyan font-mono mr-2">Lab</span>{l.testName}</span>
+                                <span className="font-mono text-xs">{l.result} {l.unit} {l.isAbnormal && <span className="text-critical ml-1 font-bold">!</span>}</span>
+                              </div>
+                            ))}
+                          </div>
+                        ) : <p className="text-xs text-muted-foreground">No lab reports.</p>}
+                      </div>
                     </div>
                   </div>
                 ) : (
